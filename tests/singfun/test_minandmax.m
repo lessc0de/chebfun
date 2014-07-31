@@ -33,9 +33,9 @@ f = singfun(@(x) (1+x).^d.*sin(50*pi*x), data, pref);
 y_exact = [-92.48807414703726; Inf];
 x_exact = [-0.9717902218389038; -1];
 err_y = y(1) - y_exact(1);
-err_x = x - x_exact; 
-pass(2) = (norm(err_x, inf) < get(f, 'epslevel')*f.smoothPart.vscale &&...
-    abs(err_y) < 2*get(f, 'epslevel')*f.smoothPart.vscale) && (y(2) == Inf);
+err_x = x - x_exact;
+tol = 10*get(f, 'epslevel')*f.smoothPart.vscale;
+pass(2) = norm(err_x, inf) <  tol && abs(err_y) < tol && (y(2) == Inf);
 
 % fractional root at the right endpoint and the smooth part has no roots in 
 % [-1 1].
@@ -52,12 +52,10 @@ x_err = x - x_exact;
 pass(3) = (norm(y_err, inf) < 1e2*get(f, 'epslevel')*f.smoothPart.vscale &&...
     norm(x_err, inf) < 1e2*get(f, 'epslevel')*f.smoothPart.vscale);
 
-p = pref;
-p.eps = max(pref.eps, 1e-14);
 % no fractional pole but a root at the left endpoint.
-data.exponents = [0 1+b];
+data.exponents = [0 b];
 data.singType = {'none', 'root'};
-f = singfun(@(x) (1-x).^b.*(exp(x)-exp(1)), data, pref);
+f = singfun(@(x) (1-x).^b.*(exp(x)-exp(1)), data);
 [y, x] = minandmax(f);
 
 % The following exact answers are obtained using Mathematica.

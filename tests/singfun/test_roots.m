@@ -44,7 +44,7 @@ err = r - r_exact;
 pass(3) = (norm(err, inf) < 10*get(f, 'vscale')*get(f, 'epslevel'));
 
 % no fractional pole but a root at the right endpoint.
-data.exponents = [0 1+b];
+data.exponents = [0 b];
 data.singType = {'none', 'root'};
 f = singfun(@(x) (1-x).^b.*(exp(x)-exp(1)), data, pref);
 r = roots(f);

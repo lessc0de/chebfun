@@ -97,6 +97,7 @@ function [values, giveUp] = refineResampling(op, values, pref)
         nans = NaN(1, size(valuesTemp, 2));
         values = [ nans; valuesTemp; nans ];
     else
+        x([1, end]) = x([1, end])*(1-eps);
         values = feval(op, x);
     end
 

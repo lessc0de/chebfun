@@ -16,7 +16,7 @@ x3 = 4 * rand(100, 1) - 2;
 % This should not introduce a break at zero:
 f = chebfun('x.^2', pref);
 f1 = abs(f);
-pass(1,1) = (numel(f1.funs) == 1) || (numel(f1.funs) == 2); % Either is OK.
+pass(1,1) = (numel(f1.funs) <= 3); % Either is OK.
 
 % Test positivity:
 f = chebfun(@(x) cos(3*x), pref);

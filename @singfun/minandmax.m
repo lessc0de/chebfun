@@ -13,6 +13,9 @@ function [vals, pos] = minandmax(f)
 
 tol = chebfunpref().blowupPrefs.exponentTol;
 
+% First simplify the exponents:
+f = extractBoundaryRoots(f);
+
 if ( ~any(f.exponents) || all(abs(f.exponents) < tol) )
   
     % The function is actually smooth!
