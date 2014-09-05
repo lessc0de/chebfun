@@ -151,12 +151,13 @@ for k = 1:nFuns
     H = [H, hk]; %#ok<AGROW>
 end
 
-% If H has the same number of funs, nothing further needs to be done:
-if ( length(h) == length(H) )
+% If H has the correct number of funs, nothing further needs to be done:
+if ( length(H) == length(breakPoints) - 1 )
+    h = H;
     return
 end
 
-% H has more funs as a result of restrict. Re-initialize h with 0 BNDFUNS:
+% H has more funs than the number of intervals. Re-initialize h with 0 BNDFUNS:
 nFuns = length(breakPoints) - 1;
 h = {};
 for k = 1:nFuns
