@@ -156,7 +156,7 @@ if ( length(h) == length(H) )
     return
 end
 
-% H has more funs as a result of restrict. Re-nitialize h with 0 BNDFUNS:
+% H has more funs as a result of restrict. Re-initialize h with 0 BNDFUNS:
 nFuns = length(breakPoints) - 1;
 h = {};
 for k = 1:nFuns
@@ -164,7 +164,7 @@ for k = 1:nFuns
     h = [h, {bndfun(0, data)}]; %#ok<AGROW>
 end
 
-% Loop through H and add it to the relevant domain piece:
+% Loop through H and add each fun to the relevant domain piece in h:
 for k = 1:length(H)
     hk = H{k};
     dom = hk.domain;
