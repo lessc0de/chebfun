@@ -134,7 +134,6 @@ classdef unbndfun < classicfun
             obj.domain = data.domain;
             obj.mapping = unbndmap;
         end
-<<<<<<< HEAD
 
     end
     
@@ -144,13 +143,8 @@ classdef unbndfun < classicfun
         % Noninear map from [-1, 1] to the domain of the UNBNDFUN.
         m = createMap(domain);
         
-        % Indefinite integral of an UNBNDFUN for a fractional order.
-        varargout = fracCumSum(varargin)
-        
         % Make a UNBNDFUN (constructor shortcut):
         f = make(varargin); 
-=======
->>>>>>> development
         
         % Retrieve and modify preferences for this class.
         prefs = pref(varargin);

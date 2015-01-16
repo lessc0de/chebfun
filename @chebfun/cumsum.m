@@ -36,15 +36,14 @@ if ( nargin < 3 )
 end
 
 if ( round(m) ~= m )
-<<<<<<< HEAD
-    f = fracCumSum(f, m);
-=======
     % Fractional integral:
-    % [TODO]: Implement this!
-    error('CHEBFUN:CHEBFUN:cumsum:notImplemented', ...
-        'Fractional antiderivatives not yet implemented.');
-    f = fracCalc(f, m);
->>>>>>> development
+    
+%     % [TODO]: Implement this!
+%     error('CHEBFUN:CHEBFUN:cumsum:notImplemented', ...
+%         'Fractional antiderivatives not yet implemented.');
+%     f = fracCalc(f, m);
+    
+    f = fracCumSum(f, m);
     return
 end
 
