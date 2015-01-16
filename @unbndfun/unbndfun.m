@@ -134,20 +134,7 @@ classdef unbndfun < classicfun
             obj.domain = data.domain;
             obj.mapping = unbndmap;
         end
-
-    end
-    
-    %% STATIC METHODS IMPLEMENTED BY UNBNDFUN CLASS.
-    methods ( Static = true ) 
         
-        % Noninear map from [-1, 1] to the domain of the UNBNDFUN.
-        m = createMap(domain);
-        
-        % Make a UNBNDFUN (constructor shortcut):
-        f = make(varargin); 
-        
-        % Retrieve and modify preferences for this class.
-        prefs = pref(varargin);
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
