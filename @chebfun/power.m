@@ -27,7 +27,7 @@ if ( isa(f, 'chebfun') && isa(b, 'chebfun') )
     
     % Check the number of columns match:
     if ( numColumns(f) ~= numColumns(b) )
-        error('CHEBFUN:power:quasi', ...
+        error('CHEBFUN:CHEBFUN:power:quasi', ...
             'Chebfun quasimatrix dimensions must agree.')
     end
     
@@ -80,7 +80,7 @@ elseif ( isa(f, 'chebfun') )
             g(k) = columnPower(f{k}, b(k), pref);
         end
     else
-        error('CHEBFUN:power:dim', ...
+        error('CHEBFUN:CHEBFUN:power:dim', ...
             'Chebfun quasimatrix dimensions must agree.');
     end
     
@@ -118,7 +118,7 @@ else
             g  = quasi2cheb(g);
         end
     else
-        error('CHEBFUN:power:dim', ...
+        error('CHEBFUN:CHEBFUN:power:dim', ...
             'Chebfun quasimatrix dimensions must agree.');
     end
 
@@ -134,6 +134,11 @@ function g = columnPower(f, b, pref)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% CHEBFUN .^ CHEBFUN %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
 if ( isa(f, 'chebfun') && isa(b, 'chebfun') ) 
+    
+    % Handle the periodic case:
+    if ( isPeriodicTech(f) && ~isPeriodicTech(b) )
+        f = chebfun(f);
+    end
     
     % Call COMPOSE(): (Note, COMPOSE() checks that the domains match)
     g = compose(f, @power, b, pref);
@@ -183,7 +188,7 @@ elseif ( isa(f, 'chebfun') )
         end
         
         % Add breaks at the appropriate roots of f:
-        if ( isreal(f) )
+        if ( isreal(f) || round(b) == b )
             f = addBreaksAtRoots(f);
         else
             % Add breaks at the roots of the imaginary part of F to account for

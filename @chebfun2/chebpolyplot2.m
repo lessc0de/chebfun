@@ -1,19 +1,20 @@
-function varargout = chebpolyplot2( f )
+function varargout = chebpolyplot2(f)
 %CHEBPOLYPLOT2   Display bivariate Chebyshev coefficients graphically.
-%   CHEBPOLYPLOT2(F) plots the bivariate Chebyshev coefficients in a stem3 plot
-%   with a semilogy scale.
+%   CHEBPOLYPLOT2(F) is deprecated. Please use PLOTCOEFFS().
 %
-%   H = CHEBPOLYPLOT2(F) returns a handle H to the figure.
-%
-% See also CHEBPOLYPLOT, CHEBPOLY2.
+% See also PLOTCOEFFS2.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
-% Compute the bivariate coefficients, truncate them when then fall below
-% tolerance for better visual, use stem3.
+warning('CHEBFUN:CHEBFUN2:chebpolyplot2:deprecated', ...
+    'CHEBPOLYPLOT2 is deprecated. Please use PLOTCOEFFS2 instead.');
+warning('off', 'CHEBFUN:CHEBFUN2:chebpolyplot2:deprecated');
 
-X = abs( chebpoly2( f ) );    % Absolute value of coefficients. 
+% TODO: Use this once plotcoeffs2 is working:
+% [varargout{1:nargout}] = plotcoeffs2(varargin{:});
+
+X = abs( chebcoeffs2( f ) );  % Absolute value of coefficients. 
 X = rot90(X, 2);              % Rotate (MATLAB's convention)
  
 % Use a stem3 plot changing the axis to log scale. 

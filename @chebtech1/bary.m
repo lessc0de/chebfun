@@ -20,12 +20,10 @@ function fx = bary(x, fvals)
 % See also CHEBTECH.BARY, CHEBPTS, BARYWTS, FEVAL.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% This method is basically a wrapper for @chebtech/bary.m.
-%
+% This method is basically a wrapper for BARY.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Parse inputs:
@@ -35,7 +33,7 @@ n = size(fvals, 1);
 xk = chebtech1.chebpts(n);
 vk = chebtech1.barywts(n);
 
-% Call the superclass method.
-fx = bary@chebtech(x, fvals, xk, vk);
+% Call BARY:
+fx = bary(x, fvals, xk, vk);
 
 end

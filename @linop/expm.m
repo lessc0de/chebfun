@@ -49,10 +49,10 @@ if ( isa(discType, 'function_handle') )
     disc = discType(L);  
     
     % Merge domains of the operator and the initial condition.
-    disc.domain = chebfun.mergeDomains(disc.domain, u0.domain); 
+    disc.domain = domain.merge(disc.domain, u0.domain); 
     
     % Set the allowed discretisation lengths: 
-    dimVals = prefs.dimensionValues;
+    dimVals = disc.dimensionValues(prefs);
     
     dimVals( dimVals < length(u0) ) = [];
     
@@ -78,13 +78,24 @@ isDone = false(1, numInt);
 if ( isa(u0, 'chebfun') )
     u0 = chebmatrix({u0}); 
 elseif ( ~isa(u0, 'chebmatrix') )
-    error('CHEBFUN:linop:expm:unknown', ...
+    error('CHEBFUN:LINOP:expm:unknown', ...
         'No support for inputs of type %s.', class(u0));
 end
 
+% Check for unbounded domains:
+if ( ~all(isfinite(L.domain)) )
+    error('CHEBFUN:LINOP:expm:infDom', ...
+        'Unbounded domains are not supported.');
+end
+
 %% Loop over different times.
-allu = chebmatrix({});
+allU = chebmatrix({});
 for i = 1:length(t)
+    
+    if ( t == 0 )
+        allU = [ allU, u0 ]; %#ok<AGROW>
+        continue
+    end
     
     %% Loop over a finer and finer grid until happy:
     for dim = dimVals
@@ -96,14 +107,10 @@ for i = 1:length(t)
         
         % Discretize the initial condition.
         discu = disc;
-        do = max(getDiffOrder(disc.source), 0);
-        do = max(do, [], 1);
+        do = getExpmDimAdjust(disc);
         for k = 1:numel(u0.blocks)
-            discu.dimension = disc.dimension + +do(k);
-            xIn = functionPoints(discu);
-            if ( ~isnumeric(u0.blocks{k}) )
-                f.blocks{k} = feval(u0.blocks{k}, xIn);
-            end
+            discu.dimension = disc.dimension + do(k);
+            f.blocks{k} = discu.toValues(u0.blocks{k},1);
         end
         v0 = cell2mat(f.blocks);  
         
@@ -112,9 +119,11 @@ for i = 1:length(t)
         
         % Convert the different components into cells
         u = partition(disc, v);
+        uFun = u(isFun);
+        vscale = discu.scale(uFun);
         
         % Test the happieness of the function pieces:
-        [isDone, epsLevel] = testConvergence(disc, u(isFun));
+        [isDone, epsLevel] = testConvergence(disc, uFun, vscale, prefs);
         
         if ( all(isDone) )
             break
@@ -123,18 +132,23 @@ for i = 1:length(t)
     end
     
     if ( ~all(isDone) )
-        warning('LINOP:expm:NoConverge', ...
+        warning('CHEBFUN:LINOP:expm:noConverge', ...
             'Matrix exponential may not have converged.')
     end
     
     %% Tidy the solution for output:
     ucell = mat2fun(disc, u);
-    doSimplify = @(f) simplify( f, max(eps, epsLevel) );
-    ucell = cellfun( doSimplify, ucell, 'uniform', false );
-    allu = [ allu, chebmatrix(ucell) ];
+    if ( numInt > 1 )
+        % The solution will always be smooth for any t > 0.
+        doMerge = @(f) merge(f);
+        ucell = cellfun(doMerge, ucell, 'uniform', false);
+    end
+    doSimplify = @(f) simplify(f, max(eps, epsLevel));
+    ucell = cellfun(doSimplify, ucell, 'uniform', false);
+    allU = [ allU, chebmatrix(ucell) ]; %#ok<AGROW>
 end
 
-u = allu;
+u = allU;
 
 % Return a CHEBFUN rather than a CHEBMATRIX for scalar problems:
 if ( all(size(u) == [1 1]) )

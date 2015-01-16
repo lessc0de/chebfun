@@ -1,4 +1,4 @@
-function varargout = eigs(L,varargin)
+function varargout = eigs(A, varargin)
 %EIGS    Eigenvalues and eigenfunctions of a linear operator.
 %   Important: While you can construct a LINOP and apply this method, the
 %   recommended procedure is to use CHEBOP.EIGS instead.
@@ -13,7 +13,7 @@ function varargout = eigs(L,varargin)
 %   chebmatrix V, where V{i}(:,j) is the jth eigenfunction in variable i of
 %   the system.
 %
-%   [...] = EIGS(A,B) solves the generalized eigenproblem A*V = B*V*D,
+%   [...] = EIGS(A, B) solves the generalized eigenproblem A*V = B*V*D,
 %   where B is another linop.
 %
 %   EIGS(A, K) and EIGS(A, B, K) find the K most easily resolved eigenvalues.
@@ -56,7 +56,7 @@ function varargout = eigs(L,varargin)
 B = [];       % no generalized operator
 k = [];       % will be made default value below
 sigma = [];   % default 'auto' mode
-prefs = [];
+pref = [];
 gotk = false; % until we detect a value of k in inputs
 for j = 1:nargin-1
     item = varargin{j};
@@ -64,7 +64,7 @@ for j = 1:nargin-1
         % Generalized operator term
         B = item;
     elseif ( isa(item,'cheboppref') )
-        prefs = item;
+        pref = item;
     elseif ( ~gotk && isnumeric(item) && (item > 0) && (item == round(item) ) )
         % k should be given before sigma (which might also be integer)
         k = item;
@@ -76,16 +76,22 @@ for j = 1:nargin-1
     end
 end
 
+% Check for unbounded domains:
+if ( ~all(isfinite(A.domain)) )
+    error('CHEBFUN:LINOP:eigs:infDom', ...
+        'Unbounded domains are not supported.');
+end
+
 %#ok<*ASGLU> % Prevent MLINT warnings for unused variables, which are used in 
              % many places in this code to avoid the [~, arg2] = ... syntax.
 
 % Grab defaults if needed.
-if ( isempty(prefs) )
-    prefs = cheboppref;
+if ( isempty(pref) )
+    pref = cheboppref();
 end
-
+             
 % Discretization type.
-discType = prefs.discretization;
+discType = pref.discretization;
 
 % Assign default to k if needed.
 if ( isempty(k) || isnan(k) )
@@ -93,22 +99,31 @@ if ( isempty(k) || isnan(k) )
 end
 
 % Check for square operator. (This is not strict enough, technically.)
-m = size(L, 2);
-if ( m ~= size(L, 1) )
-    error('LINOP:eigs:notsquare','Block size must be square.')
+m = size(A, 2);
+if ( m ~= size(A, 1) )
+    error('CHEBFUN:LINOP:eigs:notSquare','Block size must be square.')
 end
 
-% Set up the discretization:
+
+% If there is a generalized eigenproblem, the domains must be merged before
+% deriving the continuity equations for A:
+if ( ~isempty(B) )
+    % Merge the domains of A and B:
+    dom = domain.merge(A.domain, B.domain);
+    A.domain = dom;
+    B.domain = dom;
+end
+
+% Set up the discretization of A:
 if ( isa(discType, 'function_handle') )
     % Create a discretization object
-    discA = discType(L);
+    discA = discType(A);
 
     % Set the allowed discretisation lengths:
-    dimVals = prefs.dimensionValues;
+    dimVals = discA.dimensionValues(pref);
 
     % Update the discretiztion dimension on unhappy pieces:
     discA.dimension = repmat(dimVals(1), 1, numel(discA.domain)-1);
-    dimVals(1) = [];
 else
     % A discretization is given:
     discA = discType;
@@ -117,26 +132,21 @@ else
     dimVals = max(discA.dimension);
 end
 
-% If there is a generalized eigenproblem, the right-side operator needs to have
-% its domain merged in and its own discretization.
+% Construct a discretization for B:
 if ( ~isempty(B) )
-    
-    % Update the discretization domain for L:
-    discA.domain = chebfun.mergeDomains(discA.domain, B.domain);
-    
-    % Construct a discretization for B:
-    constructor = str2func( class(discA) );   % constructor handle
+
+    constructor = str2func( class(discA) );   % constructor handle.
     discB = constructor(B);
     
     % We can ignore constraints and continuity--enforced on the left side.
     if ( ~isempty(discB.source.constraint) )
         discB.source.constraint = [];
-        warning('CHEBFUN:linop:eigs:constraints', ...
+        warning('CHEBFUN:LINOP:eigs:constraints', ...
                 'Constraints on B are ignored.')
     end
     if ( ~isempty(discB.source.continuity) )
         discB.source.continuity = [];
-        warning('CHEBFUN:linop:eigs:continuity', ...
+        warning('CHEBFUN:LINOP:eigs:continuity', ...
                 'Continuity conditions on B are ignored.')
     end       
     
@@ -147,7 +157,7 @@ else
     discB = [];
 end
 
-if ( isempty(L.continuity) )
+if ( isempty(A.continuity) )
      % Apply continuity conditions:
      discA.source = deriveContinuity(discA.source);
 end
@@ -159,7 +169,7 @@ end
 
 % Information required for finding the eigenvalues and functions.
 numInts = discA.numIntervals;
-isFun = isFunVariable(L);
+isFun = isFunVariable(A);
 
 % Automatic mode: find the best sigma by going where the convergence appears to
 % be fastest.
@@ -183,7 +193,7 @@ if ( isempty(sigma) )
 
     if ( all(bigDel) )
         % All values changed somewhat-- choose the one changing the least.
-        [~, idx] = min(delta);
+        [ignored, idx] = min(delta);
         sigma = lam1(idx);
     else
         % One by one, convert the eigenvectors to functions and check their cheb
@@ -201,7 +211,7 @@ if ( isempty(sigma) )
         z = toFunctionOut(discA, Z);
 
         % Obtain all coefficients to use below
-        coeffs = get(z, 'coeffs');
+        coeffs = get(z, 'coeffs', 1);
         
         % Compute the 1-norm of the polynomial expansions, summing over smooth
         % pieces, for all columns.
@@ -210,7 +220,7 @@ if ( isempty(sigma) )
             onenorm = onenorm + sum(abs(coeffs{j}), 1 ).';
         end
         
-        [~, index] = min(onenorm);
+        [ignored, index] = min(onenorm);
         sigma = lam2(index);
     end
 end
@@ -229,9 +239,11 @@ for dim = dimVals
 
     % Convert the different components into cells
     u = partition(discA, P*v);
+    
 
-    % Test the happieness of the function pieces:
-    [isDone, epsLevel] = testConvergence(discA, u(isFun));
+    % Test the happiness of the function pieces:
+    vscale = zeros(sum(isFun),1);   % intrinsic scaling only
+    [isDone, epsLevel] = testConvergence(discA, u(isFun), vscale, pref);
 
     if ( all(isDone) )
         break
@@ -245,7 +257,7 @@ end
 % Detect finite rank operators.
 if ( size(D,1) < k )
     if ( gotk )
-        warning('CHEBFUN:linop:eigs:rank',...
+        warning('CHEBFUN:LINOP:eigs:rank',...
             'Input has finite rank, only %d eigenvalues returned.', size(D,1));
     end
     k = size(D,1);
@@ -263,23 +275,50 @@ else            % Unwrap the eigenvectors for output
 
     u = mat2fun(discA, P*V);
 
+    % For normalizing eigenfunctions, so that they always have the same sign:
+    signMat = [];
+    
     % Find the norm in each eigenfunction (aggregated over variables).
     nrmsq = zeros(1,k);
     for j = 1:length(u)
         if ( isFun(j) )
             % Compress the representation.
             u{j} = simplify(u{j}, max(eps,epsLevel));
+            if (isempty(signMat))
+                % Find what domain we are working on:
+                dom = domain(u{j});
+                % Arbitrary point just to the right of the middle of the domain:
+                fevalPoint = dom(1) + diff([dom(1) dom(end)])*.500023981;
+                % Find out what sign the real part of the function have there:
+                fevalSigns = sign(real(feval(u{j}, fevalPoint)));
+                % Diagonal matrix with elements equal to the sign at our
+                % arbitrary point. Add 0.1 and take signs again to ensure we
+                % don't end up with any zeros (in case we were very unlucky).
+                signMat = diag(sign(fevalSigns + 0.1));
+            end
         end
         nrmsq = nrmsq + sum(u{j}.*conj(u{j}), 1);
     end
-
+    
     % Normalize each eigenfunction.
     scale = diag( 1./sqrt(nrmsq') );
     for j = 1:length(u)
-        u{j} = u{j}*scale;
+        u{j} = u{j}*scale*signMat;
     end
 
-     varargout = {chebmatrix(u), D};
+    % TODO: Can we move this to the CHEBMATRIX constructor?
+    % NOTE: The following is required because block entries of a CHEBMATRIX
+    % should only contain scalar objects (in particular, _not_ array-valued
+    % CHEBFUNS or quasimatrices). Here we unwrap everything so that each
+    % component of each eigenfunction is a single entry in a cell array.
+    for j = 1:numel(u)
+        % Convert each solution to it's own entry in a cell.
+        u{j} = num2cell(u{j});
+    end
+    u = chebmatrix(vertcat(u{:}));
+   
+    % Output:
+    varargout = {u, D};
 end
 
 end
@@ -359,7 +398,7 @@ else
         case 'SM'
             [junk, idx] = sort(abs(lam), 'ascend');
         otherwise
-            error('CHEBFUN:linop:eigs:sigma', 'Unidentified input ''sigma''.');
+            error('CHEBFUN:LINOP:eigs:sigma', 'Unidentified input ''sigma''.');
     end
 end
 
@@ -403,12 +442,17 @@ while ( ~isempty(queue) )
     vcoeffsq = 0;
     for i = 1:numel(vcoeff)
         for q = 1:numel(vcoeff{i})
+            % TODO: The flipud below is required to make sure that the 
+            % algorithm, designed for the old ordering of cheb-coeffs, continues
+            % to work. One can remove the following flipud but then carefull 
+            % changes will be needed in this function.
+            vcoeff{i}{q} = flipud(vcoeff{i}{q});
             newcoeff2 = vcoeff{i}{q}.*conj(vcoeff{i}{q});
             lnc2 = length(newcoeff2);
             lvcs = length(vcoeffsq);
             if ( lnc2 > lvcs )
                 % Pad with leading zeros
-                vcoeffsq = [ zeros(lnc2 - lvcs,1) ; vcoeffsq ]; %#ok<AGROW>
+                vcoeffsq = [ zeros(lnc2 - lvcs,1) ; vcoeffsq ; ]; %#ok<AGROW>
                 lvcs = length(vcoeffsq);
             end
             % Only the most significant rows affected
@@ -416,7 +460,7 @@ while ( ~isempty(queue) )
             vcoeffsq(rows) = vcoeffsq(rows) + newcoeff2; %#ok<AGROW>
         end
     end
-    vcoeff = sqrt( flipud( sum(vcoeffsq, 2) ) );
+    vcoeff = sqrt( flipud(sum(vcoeffsq, 2)) );
 
     % Recipe: More than half of the energy in the last 90% of the Chebyshev
     % modes is in the highest 10% modes, and the energy of the last 90% is

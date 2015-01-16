@@ -17,6 +17,8 @@ function varargout = bvp4c(fun1, fun2, y0, varargin)
 %   variation of the problem, then using the resulting CHEBFUN as the initial
 %   guess for a more difficult version.
 %
+%   Note that CHEBFUN/BVP4C() uses a default RELTOL of 1e-6.
+%
 % Example (using built-in BVP demo functions):
 %   y0 = chebfun([0, 0], [0, 4]);
 %   y = bvp4c(@twoode, @twobc, y0);
@@ -40,7 +42,7 @@ for k = 1:nargin-3
 end
 
 if ( ~isfinite(y0) )
-    error('CHEBFUN:bvp4c:inf',...
+    error('CHEBFUN:CHEBFUN:bvp4c:inf',...
       'BVP4C() does not currently support functions which diverge to infinity');
 end
 
@@ -55,7 +57,7 @@ init = bvpinit(x, f, params{:});
 
 % Call BVP solver and convert to CHEBFUN.
 sol = bvp4c(fun1, fun2, init, opts{:});
-varargout{1} = chebfun.odesol(sol, opts{:});
+varargout{1} = chebfun.odesol(sol, dom, opts{:});
 
 % Look for parameter output.
 if ( ~isempty(params) )

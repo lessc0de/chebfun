@@ -15,7 +15,7 @@ function [M, S] = instantiate(disc)
 % See also: MATRIX
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 data = disc.source;
 if ( isa(data, 'chebmatrix') )
@@ -43,13 +43,13 @@ function A = instantiateOne(disc, item)
 
 if ( isa(item, 'linBlock') )
     disc.source = item;
-    A = disc.source.stack( disc );
+    A = disc.source.stack(disc);
 elseif ( isa(item, 'chebfun') )
     A = disc.toValues(item);
 elseif ( isnumeric(item) )
     A = item;
 else   
-    error('CHEBFUN:COLLOC2:instantiate:instantiateOne', 'Unrecognized item.')
+    error('CHEBFUN:COLLOC:instantiate:instantiateOne', 'Unrecognized item.')
 end
 
 end

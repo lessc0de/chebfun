@@ -14,7 +14,7 @@ function g = cumsum(f, dim)
 % See also SUM.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % [TODO]: Improvement on the algorithm to handle the case with singularities at
 % both the end points. Improvement on the whole SINGFUN class to handle
@@ -33,7 +33,7 @@ function g = cumsum(f, dim)
 
 % Check the dimension, i.e. the third argument:
 if ( nargin == 2 ) && ( dim ~= 1 )
-    error('SINGFUN:cumsum:nosupport', ...
+    error('CHEBFUN:SINGFUN:cumsum:noSupport', ...
         'SINGFUN does not support array-valued objects.')
 end
 
@@ -49,12 +49,12 @@ elseif ( all(f.exponents) ) % Singularities at both endpoints:
     % Introduce a new break point at 0 using RESTRICT:
     f = restrict(f, [-1 0 1]);
     g{1} = singIntegral(f{1})/2;
-    rVal = get(g{1}, 'rval');
     g{2} = singIntegral(f{2})/2;
     % Adjust the second piece:
-    g{2} = g{2} + (rVal - get(g{2}, 'lval'));
+    rVal = get(g{1}, 'rval');
+    g{2} = g{2} + rVal;
 else % Error message thrown for other cases:
-    error('SINGFUN:cumsum:nosupport', ...
+    error('CHEBFUN:SINGFUN:cumsum:noSupport', ...
         'CUMSUM() does not support the given case.')
 end
 
@@ -71,7 +71,7 @@ end
 function g = singIntegral(f)
 
     if ( ~isa(f.smoothPart, 'chebtech') )
-        error('SINGFUN:cumsum:nosupport', ...
+        error('CHEBFUN:SINGFUN:cumsum:noSupport', ...
             ['CUMSUM() does not support a singfun with the current type of ' ...
             'smoothPart.'])
     end
@@ -111,9 +111,8 @@ function g = singIntegral(f)
         xs = prolong(xs, N + 1);
     end
     
-    % We flip up and down to have the coefficients of xs ordered with ascending
-    % indices.
-    aa = flipud(xs.coeffs);
+    % Get the coefficients of xs:
+    aa = xs.coeffs;
     
     % The recurrence to solve for the coefficients for u', i.e., c_k. (*)
     c = zeros(N, 1);
@@ -152,13 +151,12 @@ function g = singIntegral(f)
         cc = cc(1:oldN+2);
     end
     
-    % Flip up and down and drop the leading zeros in the coefficients:
-    cc = flipud(cc);
-    ind = find(cc ~= 0, 1, 'first');
+    % Drop the leading zeros in the coefficients:
+    ind = find(cc ~= 0, 1, 'last');
     if ( isempty(ind) )
         cc = 0;
     else
-        cc = cc(ind:end);
+        cc = cc(1:ind);
     end
     
     % Construct u as a smoothfun object:
@@ -192,15 +190,23 @@ function g = singIntegral(f)
     else
         % Log term: integer poles with constant or non-constant smooth part:
         % [TODO]: Construct a representation of log.
-        error('SINGFUN:cumsum:nolog',['cumsum does not support the case ', ...
-            'in which the indefinite integral has a logarithmic term.'])
-        
+        error('CHEBFUN:SINGFUN:cumsum:noLog', ...
+            ['cumsum does not support the case in which the indefinite ' ...
+             'integral has a logarithmic term.'])
     end
     
     % Flip back so singularity is on the right for the case with singularity at
     % the right end of the domain.
     if ( flip )
         g = -flipud(g);
+    end
+    
+    % If G is not blowing up, ensure G(-1) == 0.
+    if ( g.exponents(1) >= 0 )
+        % suppress the warning:
+        warnState = warning('off', 'CHEBFUN:SINGFUN:plus:exponentDiff');
+        g = g - get(g, 'lval');
+        warning(warnState)        
     end
 
 end

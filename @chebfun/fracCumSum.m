@@ -20,19 +20,16 @@ for k = 1:m
 end
 
 % The fractional part:
-fracM = m - floor(m);
+alph = m - floor(m);
 
 % Grab some fields from f:
 funs = f.funs;
 numFuns = numel(funs);
+dom = f.domain;
 
 % Loop over each FUN by calling FRACCumSum@BNDFUN:
 for k = 1:numFuns
-    if all(isfinite(funs{k}.domain))
-        f.funs{k} = bndfun.fracCumSum(funs(1:k), fracM);
-    else
-        f.funs{k} = unbndfun.fracCumSum(funs(1:k), fracM);
-    end
+    f.funs{k} = fracCumSum(f.funs{k}, alph, dom([1,end]));
 end
 
 % Simplify:

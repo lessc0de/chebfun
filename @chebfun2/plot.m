@@ -13,8 +13,8 @@ function varargout = plot( f, varargin )
 %
 %   When the first argument in options is a string giving details about
 %   linestyle, markerstyle or colour then pivot locations are plotted. Various
-%   line types, plot symbols and colors may be obtained with plot(F,S) where S i
-%   a character string made from one element from any or all the following 3
+%   line types, plot symbols and colors may be obtained with plot(F,S) where S
+%   is a character string made from one element from any or all the following 3
 %   columns, similar as in the usual plot command:
 %
 %           b     blue          .     point              -     solid
@@ -39,7 +39,7 @@ function varargout = plot( f, varargin )
 % See also SURF, MESH.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information. 
+% See http://www.chebfun.org/ for Chebfun information. 
 
 holdState = ishold;
 if ( ~isempty(varargin) )

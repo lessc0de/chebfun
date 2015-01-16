@@ -21,13 +21,15 @@ L = addbc(L,B2,1);
 
 %%
 
-types = {@colloc2,  @ultraS};
+types = {@chebcolloc2,  @ultraS};
+prefs = cheboppref;
+prefs.errTol = 1e-13;
 
 for k = 1:2
     
-    L.prefs.discretization = types{k};
+    prefs.discretization = types{k};
     
-    u = L\f;
+    u = linsolve(L,f,prefs);
     
     %
 %     plot(u{1},'b'); hold on
@@ -47,4 +49,4 @@ for k = 1:2
 end
 
 err;
-pass = err < 1e-12;
+pass = err < 1e-9;

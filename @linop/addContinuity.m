@@ -3,10 +3,10 @@ function L = addContinuity(L, varargin)
 %   L = ADDCONTINUITY(L,FUN,VAL) adds a new constraint on the linop L. The
 %   functional FUN when applied to a function will be required to be VAL.
 %
-%   See also LINOP.ADDCONSTRAINT, LINOPCONSTRAINT. 
+% See also LINOP.ADDCONSTRAINT, LINOPCONSTRAINT. 
 
 %  Copyright 2014 by The University of Oxford and The Chebfun Developers.
-%  See http://www.chebfun.org for Chebfun information.
+%  See http://www.chebfun.org/ for Chebfun information.
 
 % We don't really care about the content. But because the continuity property is
 % modified, other linop calls will not apply automatically derived continuity
@@ -21,7 +21,7 @@ n1 = length(L.domain);
 F = L.continuity.functional;
 n2 = length(F.domain);
 if ( n1 ~= n2 )
-    L.domain = chebfun.mergeDomains(L.domain,F.domain);
+    L.domain = domain.merge(L.domain,F.domain);
 end
 
 end

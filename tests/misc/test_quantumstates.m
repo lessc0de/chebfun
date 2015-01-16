@@ -11,8 +11,6 @@ V = x.^2;       % Potential, harmonic oscillator
 [efuns, evals] = quantumstates(V, 'noplot');
 
 % Extract eigenvalues
-% Extract eigenvalues
-D = diag(evals);
 D = diag(evals);
 
 % Expect the eigenvalues to go up in steps of .2
@@ -27,10 +25,12 @@ n = 6;
 % Solve
 [efuns, evals] = quantumstates(V, n, h, 'noplot');
 
+efuns = horzcat(efuns{1:n});
+
 % The Schroedinger operator
 op = @(u) -h^2*diff(u,2) + repmat(V, 1, n).*u;
 
 % Did quantumstates() return eigenfunctions and eigenvalues?
-err = norm( op(efuns) - evals*efuns );
+err = norm( op(efuns) - efuns*evals );
 pass(2) = err < 5e-8;
 end

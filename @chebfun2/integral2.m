@@ -14,7 +14,7 @@ function I = integral2( f, c )
 % See also INTEGRAL, SUM2, QUAD2D.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Empty check:
 if ( isempty( f ) ) 
@@ -43,20 +43,42 @@ elseif ( nargin == 2 )
             
             % Green's theorem tells that you can integrate a function over a
             % region by integration along the boundary of the region's boundary.
-            % There are plenty of different ways of applying Green's thoerem and
-            % this is AT's choice.
+            % 
+            % HOW IT WORKS: Green's theorem states that: 
+            % 
+            %  (*) int_c dot((M;L), normal(c)) = intt_D div( dM/dx ; dL/dy)dxdy. 
+            % 
+            % The algorithm below writes f = div( dM/dx ; dL/dy) and constructs
+            % functions M(x,y) and L(x,y) so the equality (*) holds.
+            %
+            % There are plenty of different ways of applying Green's theorem. 
+            % AT's choice is to treat both variables equally,
+            %
+            % op = @(x,y) sum( chebfun(@(s) feval(f, s*x, s*y).*s, [0 1] ) );
+            % Fs = chebfun2(op , dom, 'vectorize');
+            % x = chebfun2( @(x,y) x, dom ); 
+            % y = chebfun2( @(x,y) y, dom );
+            % F = [ -Fs.*y; Fs.*x ];
+            % I = integral(F, c);
+            %
+            % Another choice would be L = 0 and M = cumsum(f, 2). 
+            %
+            % M = cumsum(f, 2); 
+            % zeroCheb = chebfun2( @(x,y) 0*x, dom );
+            % F = [ M ; zeroCheb ];
+            % I = integral(F, c);
+            
+            % [TODO: Is this a good choice?]
+            
             op = @(x,y) sum( chebfun(@(s) feval(f, s*x, s*y).*s, [0 1] ) );
             Fs = chebfun2(op , dom, 'vectorize');
-            
-            x = chebfun2( @(x,y) x, dom );
+            x = chebfun2( @(x,y) x, dom ); 
             y = chebfun2( @(x,y) y, dom );
-            
-            % Form CHEBFUN2V and do a line integral.
-            F = [ -Fs.*y; Fs.*x ];  
+            F = [ -Fs.*y; Fs.*x ];
             I = integral(F, c);
             
         else
-            error('CHEBFUN2:integral2:input', ...
+            error('CHEBFUN:CHEBFUN2:integral2:input', ...
                 'Integration path must be complex-valued');
         end
         
@@ -73,12 +95,12 @@ elseif ( nargin == 2 )
                 I = sum( restrict ( f,restriction ) );
             end
         else
-            error('CHEBFUN2:integral2:baddomain', ...
+            error('CHEBFUN:CHEBFUN2:integral2:baddomain', ...
             'Domain should have four corners.');
         end
         
     else
-        error('CHEBFUN2:integral2:nargin', 'Too many input arguments.');
+        error('CHEBFUN:CHEBFUN2:integral2:nargin', 'Too many input arguments.');
     end
     
 end

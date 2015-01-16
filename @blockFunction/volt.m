@@ -1,4 +1,4 @@
-function f = volt(A, kernel, oneVar)
+function f = volt(kernel, A, oneVar)
 % VOLT  Volterra integral operator.
 % V = VOLT(K,D) constructs a chebop representing the Volterra integral
 % operator with kernel K for functions in domain D=[a,b]:
@@ -52,25 +52,23 @@ function v = applyVolt(u, dom, kernel)
     
     nrmu = max(1, norm(u));
     p.techPrefs.sampleTest = false;
-    p.scale = nrmu;
     
     % TODO: Explore the correct preferences for best behavior.
     %    p.techPrefs.eps = nrmu*eps;
-    %    p.enableBreakpointDetection = true;
+    %    p.splitting = true;
     p = chebfunpref(p);
     
     breaks = dom(2:end-1);
     
-     
     v = chebfun(@integral, [dom(1) breaks dom(end)], ...
-        'vectorize', 'sampletest', 0, 'chebkind', 1 );
+        'vectorize', 'sampleTest', 0, 'chebkind', 1 );
     
     function h = integral(x)
         if ( abs(x-dom(1)) < eps )
             h = 0;
         else
             tmp = chebfun(@(y) feval(u,y).*kernel(x,y), ...
-                [dom(1) breaks(breaks<x) x], p);
+                [dom(1) breaks(breaks<x) x], p, 'vscale', nrmu);
             h = sum( tmp );
         end
     end

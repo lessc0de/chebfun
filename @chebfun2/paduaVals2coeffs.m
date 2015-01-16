@@ -5,8 +5,8 @@ function [C, V, X, Y] = paduaVals2coeffs(f, dom)
 %   by PADUAPTS(N) for an appropriately chosen value of N.
 %
 %   [C, V, X, Y] = CHEBFUN2.PADUAVALS2COEFFS(F) returns also the values V of the
-%   same interpolant evaluated at an (N+1)x(N+1) point Chebyshev tensor product
-%   grid, {X, Y}.
+%   same interpolant evaluated at an (N+1)x(N+1) point 2nd-kind Chebyshev tensor
+%   product grid, {X, Y}.
 %
 %   ... = CHEBFUN2.PADUAVALS2COEFFS(F, [a, b, c, d]) is as above, but when F is
 %   given by PADUAPTS(N, [a, b, c, d]).
@@ -64,8 +64,8 @@ if ( n < useFFTwhenNisMoreThan )
     C = Tn2*G*Tn1;
 else
     % Use DCT:
-    dct = @(c) flipud(chebtech2.coeffs2vals(flipud(c)));    
-    C = dct(dct(G.').');
+    dct = @(c) chebtech2.coeffs2vals(c);    
+    C = rot90(dct(dct(G.').'), 2);
 end
 % Modify a few entries:
 C(1,:) = .5*C(1,:);
@@ -78,9 +78,6 @@ C = triu(C(:,end:-1:1));
 C = C(:,end:-1:1);  
 
 if ( nargout < 2 )
-    % For consistency with CHEBFUN2:
-    C = rot90(C, 2);
-    
     % No need to go any further!
     return
 end
@@ -96,10 +93,6 @@ else
     V = dct(dct(C.').');    
 end
 
-% For consistency with CHEBFUN2.
-C = rot90(C, 2);
-V = rot90(V, 2); 
-
 if ( nargout < 3 )
     % No need to go any further!
     return
@@ -114,8 +107,3 @@ ynp1 = chebpts(n+1, dom(3:4));
 [X, Y] = meshgrid(xnp1, ynp1);
 
 end
-
-
-
-
-

@@ -21,7 +21,7 @@ pass(1) = isempty(f + []);
 pass(2) = isempty(f + g);
 
 % Turn on splitting, since we'll need it for the rest of the tests.
-pref.enableBreakpointDetection = 1;
+pref.splitting = 1;
 
 %% Test addition with scalars.
 f1_op = @(x) sin(x).*abs(x - 0.1);
@@ -110,10 +110,8 @@ x = diff(dom) * rand(100, 1) + dom(1);
 pow = -1;
 op1 = @(x) (x - dom(2)).^pow.*sin(100*x);
 op2 = @(x) (x - dom(2)).^pow.*cos(300*x);
-pref.singPrefs.exponents = [0 pow];
-pref.enableBreakpointDetection = 1;
-f = chebfun(op1, dom, pref);
-g = chebfun(op2, dom, pref);
+f = chebfun(op1, dom, 'exps', [0 pow], 'splitting', 'on');
+g = chebfun(op2, dom, 'exps', [0 pow], 'splitting', 'on');
 h = f + g;
 vals_h = feval(h, x);
 op = @(x)  (x - dom(2)).^pow.*(sin(100*x)+cos(300*x));
@@ -142,6 +140,34 @@ hVals = feval(h, x);
 hExact = oph(x);
 err = hVals - hExact;
 pass(29) = norm(err, inf) < get(h,'epslevel').*get(h,'vscale');
+
+%% Test addition between a CHEBFUN and a TRIGFUN.
+
+dom = [0 pi 2*pi];
+
+% 1. One column case.
+f = chebfun(@(x) x + x.^2, dom, pref);
+g = chebfun(@(x) cos(x), [dom(1) dom(end)], 'periodic');
+h1 = f + g;
+% We want the result to use the same tech as the one used by f.
+pass(30) = strcmpi(func2str(get(h1.funs{1}.onefun, 'tech')), ...
+                   func2str(get(f.funs{1}.onefun, 'tech')));
+h2 = chebfun(@(x) x + x.^2 + cos(x), dom, pref);
+err = norm(h1 - h2, inf);
+tol = 10*get(h2,'epslevel').*get(h2,'vscale');
+pass(31) = err < tol;
+
+% 2. Quasimatrix case.
+f = chebfun(@(x) [cos(x), sin(x)], [dom(1) dom(end)], 'periodic');
+g = chebfun(@(x) [x, x.^3], dom, pref);
+h1 = f + g;
+% We want the result to use the same tech as the one used by g.
+pass(32) = strcmpi(func2str(get(h1(:,1).funs{1}.onefun, 'tech')), ...
+                   func2str(get(g(:,1).funs{1}.onefun, 'tech')));
+pass(33) = strcmpi(func2str(get(h1(:,2).funs{1}.onefun, 'tech')), ...
+                   func2str(get(g(:,2).funs{1}.onefun, 'tech')));
+h2 = chebfun(@(x) [x + cos(x), x.^3 + sin(x)], dom, pref);
+pass(34) = norm(h1-h2, inf) < 1e1*get(h2,'epslevel').*get(h2,'vscale');
 
 end
 

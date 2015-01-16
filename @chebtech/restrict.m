@@ -24,7 +24,7 @@ end
 
 % Check if s is actually a subinterval:
 if ( (s(1) < -1) || (s(end) > 1) || (any(diff(s) <= 0)) )
-    error('CHEBTECH:restrict:badinterval', 'Not a valid interval.')
+    error('CHEBFUN:CHEBTECH:restrict:badInterval', 'Not a valid interval.')
 elseif ( (numel(s) == 2) && all(s == [-1, 1]) )
     % Nothing to do here!
     return
@@ -54,14 +54,14 @@ coeffs = f.vals2coeffs(values);
 vscale = max(abs(values), [], 1);
 
 % Update epslevel:
-epslevel = repmat(f.epslevel.*f.vscale, 1, numInts)./vscale;
 % (The product of the epslevels and vscales of the 'child' pieces should be the
 % same as the product of the epslevel and vscale of their 'parent'.)
+epsBound = repmat(f.epslevel.*f.vscale, 1, numInts)./vscale;
 
 % Append data to CHEBTECH:
 f.coeffs = coeffs;
 f.vscale = vscale;
-f.epslevel = epslevel;
+f.epslevel = updateEpslevel(f, epsBound);
 
 if ( numInts > 1 )
     % Convert to a cell-array:

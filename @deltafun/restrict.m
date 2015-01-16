@@ -21,9 +21,19 @@ dom = domain(f);
 a = dom(1); 
 b = dom(2);
 
+% If the first or the last break points is very close to the original domain,
+% merge it:
+pref = chebfunpref();
+tol = pref.deltaPrefs.proximityTol;
+if ( abs(s(1) - a) < tol )
+    s(1) = a;
+end
+if ( abs(s(end) - b) < tol )
+    s(end) = b;
+end
 % Check if s is actually a subinterval:
 if ( (s(1) < a) || (s(end) > b) || (any(diff(s) <= 0)) )
-    error('DELTAFUN:restrict:badinterval', 'Not a valid subinterval.')
+    error('CHEBFUN:DELTAFUN:restrict:badInterval', 'Not a valid subinterval.')
 elseif ( (numel(s) == 2) && all(s == [a, b]) )
     % Nothing to do here!
     g = f;
@@ -39,15 +49,11 @@ end
 % Create a cell to be returned.
 g = cell(1, numel(s)-1);
 
-% Get preferences:
-pref = chebfunpref();
-pTol = pref.deltaPrefs.proximityTol;
-
 % Loop over each of the new subintervals, make a DELTAFUN and store in a cell:
 numFuns = numel(s) - 1;
 for k = 1:numFuns
     funPart = restrictedFunParts{k};
-
+          
     idx = (f.deltaLoc >= s(k)) & (f.deltaLoc <= s(k+1));
     deltaLoc = f.deltaLoc(idx);
     deltaMag = f.deltaMag(:,idx);
@@ -56,14 +62,14 @@ for k = 1:numFuns
     % by two. Each adjacent fun will get half the contribution. The first 
     % break point of the first fun and the last break point of the last 
     % fun do not get divided by half.
-    if ( ~isempty(deltaLoc) )
-        if ( abs(deltaLoc(1) - s(k)) < pTol )
+    if ( ~isempty(deltaLoc) )       
+        if ( deltaLoc(1) == s(k) )
             if ( k ~= 1 )
                 deltaMag(:, 1) = deltaMag(:, 1)/2;
             end
         end
-        
-        if ( abs(deltaLoc(end) - s(k+1)) < pTol )
+                
+        if ( deltaLoc(end) == s(k+1) )
             if ( k ~= numFuns )
                 deltaMag(:, end) = deltaMag(:, end)/2;
             end
@@ -79,7 +85,9 @@ for k = 1:numFuns
     if ( isempty(deltaLoc) )
         g{k} = funPart;
     else
-        g{k} = deltafun(funPart, deltaMag, deltaLoc);
+        data.deltaMag = deltaMag;        
+        data.deltaLoc = deltaLoc;
+        g{k} = deltafun(funPart, data);
     end
 end
 

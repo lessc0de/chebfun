@@ -11,17 +11,16 @@ function F = restrict(F, newDomain)
 %   F.domain(end), then an error is returned. If S is empty or a scalar, then an
 %   empty CHEBFUN G is returned.
 %
-%   G = F{S} is an equivalent syntax.
+%   Note that G will not be 'simplified'. If this is required, call G =
+%   SIMPLIFY(RESTRICT(F)), or G = F{S}.
 %
-% See also OVERLAP, SUBSREF, DEFINE.
+% See also OVERLAP, SUBSREF, DEFINE, SIMPLIFY.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
 % Tweak the domain of a quasimatrix input:
-if ( numel(F) > 1 )   
-    F = tweakDomain(F);
-end
+[F, newDomain] = tweakDomain(F, newDomain);
 
 % Loop over the columns:
 for k = 1:numel(F)
@@ -43,6 +42,12 @@ elseif ( isempty(newDomain) || numel(newDomain) == 1 )
     return
 end
 
+% Cast a periodic chebfun to a regualr chebfun:
+if ( isPeriodicTech(f) )
+    f = chebfun(f);
+end
+
+
 % Grab domain from f:
 oldDomain = f.domain;
 
@@ -56,7 +61,7 @@ end
 if ( (newDomain(1) < oldDomain(1)) || (newDomain(end) > oldDomain(end)) || ...
         any(diff(newDomain) < 0) )
     % newDom is not a valid subinterval of oldDom!
-    error('CHEBFUN:restrict:subdom', 'Not a valid subdomain.');
+    error('CHEBFUN:CHEBFUN:restrict:subdom', 'Not a valid subdomain.');
 end
 
 % Obtain FUN cell and pointValues from f:
@@ -84,7 +89,6 @@ numFuns = numel(funs);
 
 % Initialise storage for new FUN objects and pointValues:
 newFuns = cell(1, numel(newDomain)-1);
-newPointValues = zeros(numel(newDomain), size(pointValues, 2), size(pointValues, 3));
 
 % Loop through each fun and restrict as required:
 l = 0;

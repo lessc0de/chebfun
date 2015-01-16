@@ -1,28 +1,30 @@
 function varargout = vals2coeffs( U, S, V )
-%VALS2COEFFS   Convert matrix of values to Chebyshev coefficients. 
+%VALS2COEFFS    Convert matrix of values to Chebyshev coefficients. 
 % 
-% V = VALS2COEFFS( C ) given a matrix C of va.ues on a tensor grid, this returns
-% the corresponding bivaraite Chebyshev coefficients, V, which is a matrix of 
-% size(C).
+% V = VALS2COEFFS( C ) converts a matrix C of values representing samples of a
+% function from a tensor Chebyshev grid and converts them to a matrix V of
+% bivariate Chebyshev coefficients for the corresponding interpolant.
 % 
-% [U, S, V] = VALS2COEFFS( U, S, V ) the same as above but keeps everything in low
-% rank form. 
+% [U, S, V] = VALS2COEFFS( U, S, V ) the same as above but keeps everything in
+% low rank form.
 % 
 % See also COEFFS2VALS
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
+
+tech = chebfunpref().tech();
 
 if ( nargin == 1 )
-    U = chebtech2.vals2coeffs( U ); 
-    U = chebtech2.vals2coeffs( U.' ).'; 
+    U = tech.vals2coeffs( U ); 
+    U = tech.vals2coeffs( U.' ).'; 
     varargout = {U}; 
 elseif ( narargin == 3 )
-    U = chebtech2.vals2coeffs( U ); 
-    V = chebtech2.vals2coeffs( V.' ).'; 
+    U = tech.vals2coeffs( U ); 
+    V = tech.vals2coeffs( V.' ).';     
     varargout = {U S V};
 else
-    error('CHEBFUN2:VALS2COEFFS:inputs', ...
+    error('CHEBFUN:CHEBFUN2:vals2coeffs:inputs', ...
         'The number of input arguments should be one or two.');
 end
 

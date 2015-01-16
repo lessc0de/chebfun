@@ -40,7 +40,7 @@ function [p, q, r, s] = cf(f, m, n, M)
 %   References:
 %
 %   [1] M. H. Gutknecht and L. N. Trefethen, "Real polynomial Chebyshev
-%       approximation by the Caratheodory-Fejer method", SIAM J. Numer. Anal. 19 
+%       approximation by the Caratheodory-Fejer method", SIAM J. Numer. Anal. 19
 %       (1982), 358-371.
 %
 %   [2] L. N. Trefethen and M. H. Gutknecht, "The Caratheodory-Fejer method fpr
@@ -51,29 +51,9 @@ function [p, q, r, s] = cf(f, m, n, M)
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
-% TODO:  Handle quasimatrices/array-valued CHEBFUNs.
-
-% TODO:  Raise error on CHEBFUNs with singular FUNs.
-
-% Check the inputs.
-if ( any(isinf(domain(f))) )
-    error('CHEBFUN:cf:unboundedDomain', ...
-        'CF does not work for CHEBFUNs with unbounded domains.');
-end
-
-if ( (numel(f.funs) > 1) && (nargin < 4) )
-    error('CHEBFUN:cf:multipleFuns', ...
-        'For CHEBFUNs with multiple FUNs, CF must be called with 4 arguments.');
-end
-
 % Do polynomial approximation if no denominator degree supplied.
 if ( nargin < 3 )
     n = 0;
-end
-
-% Form global polynomial approximation if f is only piecewise smooth.
-if ( numel(f.funs) > 1 )
-    f = chebfun(@(x) feval(f, x), f.domain([1, end]), M + 1);
 end
 
 % Use full series expansion of F by default.
@@ -81,22 +61,76 @@ if ( nargin < 4 )
     M = length(f) - 1;
 end
 
+numCols = numColumns(f);
+if ( numCols > 1 )
+    if ( numel(f) == 1 )
+        % Convert array-valued CHEBFUNs to quasimatrices first.
+        f = cheb2quasi(f);
+        [p, q, r, s] = cf(f, m, n, M);
+    else
+        % Deal with quasimatrices.
+        r = cell(1, numCols);
+        s = zeros(1, numCols);
+        for k = 1:numCols
+            [pk, qk, rk, sk] = cfOneColumn(f(:, k), m, n, M);
+            p(k) = pk;
+            q(k) = qk;
+            r{k} = rk;
+            s(k) = sk;
+        end
+
+        if ( f(1).isTransposed )
+            p = p.';
+            q = q.';
+            r = r.';
+            s = s.';
+        end
+    end
+else
+    [p, q, r, s] = cfOneColumn(f, m, n, M);
+end
+
+end
+
+function [p, q, r, s] = cfOneColumn(f, m, n, M)
+
+% Check the inputs.
+if ( any(isinf(domain(f))) )
+    error('CHEBFUN:CHEBFUN:cf:unboundedDomain', ...
+        'CF does not work for CHEBFUNs with unbounded domains.');
+end
+
+if ( issing(f) )
+    error('CHEBFUN:cf:singularFunction', ...
+        'CF does not support functions with singularities.');
+end
+
+if ( (numel(f.funs) > 1) && (nargin < 4) )
+    error('CHEBFUN:CHEBFUN:cf:multipleFuns', ...
+        'For CHEBFUNs with multiple FUNs, CF must be called with 4 arguments.');
+end
+
+% Form global polynomial approximation if f is only piecewise smooth.
+if ( numel(f.funs) > 1 )
+    f = chebfun(@(x) feval(f, x), f.domain([1, end]), M + 1);
+end
+
 % Trivial case: approximation length exceeds that of the expansion length.
 if ( m >= M )
     p = f;
-    q = chebfun(1, dom);
+    q = chebfun(1, domain(f));
     r = @(x) feval(p, x);
     s = 0;
     return
 end
 
 % Extract the Chebyshev coefficients to be used in computing the approximation.
-a = chebpoly(f, length(f));
-a = a((end-M):end);
+a = chebcoeffs(f, length(f));
+a = a(1:M+1);
 
 % Deal with complex-valued functions.
 if ( any(imag(a) ~= 0) )
-    warning('CHEBFUN:cf:complex', ...
+    warning('CHEBFUN:CHEBFUN:cf:complex', ...
         'CF does not work for complex valued functions. Taking real part.');
     a = real(a);
 end
@@ -105,7 +139,7 @@ end
 if ( isempty(n) || (n == 0) )
     [p, q, r, s] = polynomialCF(f, a, m, M);
 else
-    [p, q, r, s] = rationalCF(f, a, m, n, M);
+    [p, q, r, s] = rationalCF(f, a(end:-1:1).', m, n, M);
 end
 
 end
@@ -119,14 +153,14 @@ dom = domain(f);
 
 % Trivial case:  approximation length is the length of the CHEBFUN.
 if ( m == M - 1 )
-    p = chebfun(a(2:(M+1)), dom, 'coeffs');
+    p = chebfun(a(1:M), dom, 'coeffs');
     q = chebfun(1, dom);
     r = @(x) feval(p, x);
-    s = abs(a(1));
+    s = abs(a(M+1));
     return
 end
 
-c = a((M-m):-1:1);
+c = a(m+2:M+1);
 if ( length(c) > 1024 )
     opts.disp = 0;
     opts.issym = 1;
@@ -145,11 +179,11 @@ uu = u(2:(M-m));
 
 b = c;
 for k = m:-1:-m
-    b = [-(b(1:(M-m-1))*uu)/u1, b]; %#ok<AGROW>
+    b = [-(b(1:(M-m-1)).'*uu)/u1; b]; %#ok<AGROW>
 end
-
-pk = a((M-m+1):(M+1)) - [b(1:m) 0] - b((2*m+1):-1:(m+1));
-p = chebfun(pk.', dom, 'coeffs');
+bb = b(m+1:2*m+1) + [0; b(m:-1:1)];
+pk = a(1:m+1)-bb;
+p = chebfun(pk, dom, 'coeffs');
 q = chebfun(1, dom);
 r = @(x) feval(p,x);
 
@@ -202,7 +236,7 @@ if ( (k > 0) || (l > 0) )
     if ( rflag )
         [p, q, r] = chebpade(f, m - k, n - k);
         s = eps;
-        %warning('CHEBFUN:cf:chebpade', ...
+        %warning('CHEBFUN:CHEBFUN:cf:chebpade', ...
         %  'Function looks close to rational; switching to CHEBPADE.');
         return;
     end
@@ -238,7 +272,7 @@ end
 
 z = roots(b);
 if ( any(abs(z) > 1) )
-    warning('CHEBFUN:cf:illConditioned', ...
+    warning('CHEBFUN:CHEBFUN:cf:illConditioned', ...
       'Ill-conditioning detected. Results may be inaccurate.');
 end
 
@@ -274,7 +308,8 @@ s = abs(s);
 % know the exact ellipse of analyticity for 1./q, so use this knowledge to
 % obtain its Chebyshev coefficients (see line below).
 qRecip = chebfun(@(x) 1./feval(q, x), dom, ceil(log(4/eps/(rho - 1))/log(rho)));
-gam = chebpoly(qRecip, length(qRecip));
+gam = flipud(chebcoeffs(qRecip, length(qRecip)));
+gam = gam.';
 gam = [zeros(1, 2*m + 1 - length(gam)) gam];
 gam = gam(end:-1:end-2*m);
 gam(1) = 2*gam(1);
@@ -289,14 +324,14 @@ C = gam(1:m,end:-1:m+2);
 G = A + C - 2*(B*B')/gam(1,1);
 
 if ( (cond(G)/s > tolCond) && (cond(G) > tolCondG) )
-  warning('CHEBFUN:cf:illConditioned', ...
+  warning('CHEBFUN:CHEBFUN:cf:illConditioned', ...
     'Ill-conditioning detected. Results may be inaccurate.');
 end
 
 bc = G\(-2*(B*ct(1)/gam(1,1) -ct(m+1:-1:2)'));
 bc0 = (ct(1) - B'*bc)/gam(1,1);
 bc = [bc0, bc(end:-1:1)'];
-p = chebfun(bc(end:-1:1).', dom, 'coeffs');
+p = chebfun(bc.', dom, 'coeffs');
 r = @(x) feval(p, x)./feval(q, x);
 
 end

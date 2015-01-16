@@ -14,7 +14,7 @@ function varargout = waterfall( f, varargin )
 % See also PLOT.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 numpts = 200;
 
@@ -119,14 +119,15 @@ else
             
             [xx, yy] = meshgrid( chebpts( length(f.rows), dom(1:2) ), P(:,2) );
             vals = feval( f, xx, yy );
-            xx = chebfun( [-1 ; 1], dom(1:2) ); 
-            yy=[]; 
-            zz=[];
+            xx = []; 
+            yy = []; 
+            zz = [];
             
             % Plot row slices:
             for jj = 1:nslices
-                yy = [yy chebfun( P(jj,2), dom(3:4) )];
-                zz = [zz chebfun( vals(jj,:), dom(3:4) )];
+                xx = [xx chebfun( [-1 ; 1], dom(1:2) )]; 
+                yy = [yy chebfun( P(jj, 2), dom(3:4) )];
+                zz = [zz chebfun( vals(jj,:).', dom(3:4) )];
             end
             h3 = plot3( xx, yy, zz, lineopts{:} );
             axis equal

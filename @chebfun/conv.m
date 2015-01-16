@@ -1,4 +1,4 @@
-function h = conv(f, g, flag)
+function h = conv(f, g, varargin)
 %CONV   Convolution of CHEBFUN objects.
 %   H = CONV(F, G) produces the convolution of CHEBFUN objects F and G:
 %                     - 
@@ -11,6 +11,10 @@ function h = conv(f, g, flag)
 %   x - c).  The breakpoints of H are all pairwise sums of the breakpoints of F
 %   and G.
 %
+%   H = CONV(F, G, 'same') will truncate the domain of H so that it is the same
+%   as F. This is useful when F and G represent rapidly decaying functions on
+%   large but finite intervals which are used to approximate infinity.
+%
 %   If F and G are simple, in the sense that their FUNS are CHEBTECH objects, a
 %   fast algorithm due to Hale and Townsend is used [1]. Otherwise, the integral
 %   is computed by brute force. CONV(F, G, 'old') forces the brute force
@@ -18,17 +22,19 @@ function h = conv(f, g, flag)
 %
 %   Note that CONV only supports piecewise-smooth functions on bounded domains.
 %
-%   Example:
+% Example:
 %     f = chebfun(1/2); g = f;
 %     subplot(2, 2, 1), plot(f)
 %     for j = 2:4, g = conv(f, g); subplot(2, 2, j), plot(g), end
 %     figure, for j = 1:4, subplot(2,2,j), plot(g), g = diff(g); end
+%
+% REFERENCES:
+%   [1] N. Hale and A. Townsend, "An algorithm for the convolution of Legendre
+%   series", SIAM Journal on Scientific Computing, Vol. 36, No. 3, pages
+%   A1207-A1220, 2014.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
-%
-% [1] N. Hale and A. Townsend, "An algorithm for the convolution of Legendre
-% series", (To appear in SISC)
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -38,53 +44,95 @@ if ( isempty(f) || isempty(g) )
     return
 end
 
+% Parse inputs:
+oldMethod = false;
+same = false;
+for k = 1:numel(varargin)
+    vk = varargin{k};
+    if ( strcmpi(vk, 'old') )
+        oldMethod = true;
+    elseif ( strcmpi(vk, 'same') )
+        same = true;
+    elseif ( strcmpi(vk, 'full') )
+        % Do nothing.
+    elseif ( strcmpi(vk, 'valid') )
+        % TODO: Supoprt 'valid'. Presumably where domains of f and g overlap?
+        error('CHEBFUN:CHEBFUN:conv:validFlag', '''valid'' is not yet supprted.');
+    else
+        error('CHEBFUN:CHEBFUN:conv:badInput', 'Unknown input option %s.', vk);
+    end
+end
+
 % No support for quasimatrices:
 if ( numColumns(f) > 1 || numColumns(g) > 1 )
-    error('CHEBFUN:conv:quasi', 'No support for array-valued CHEBFUN objects.');
+    error('CHEBFUN:CHEBFUN:conv:quasi', ...
+        'No support for array-valued CHEBFUN objects.');
 end
 
 % Check transpose state:
 if ( xor(f(1).isTransposed, g(1).isTransposed) )
-    error('CHEBFUN:conv:transposed', 'CHEBFUN dimensions do not agree.');
+    error('CHEBFUN:CHEBFUN:conv:transposed', ...
+        'CHEBFUN dimensions do not agree.');
 end
 transState = f(1).isTransposed;
+
+% Return a warning if F and G have too many pieces (the computation is probably
+% going to be very slow):
+if ( ( numel(f.funs) + numel(g.funs) ) > 50 ) 
+    % Give a warning and proceed. 
+   warning('CHEBFUN:CHEBFUN:conv:piecewise',...
+       ['Convolving CHEBFUNs with many pieces can be very slow.\n', ...
+        'Try calling MERGE() on the inputs before calling CONV().']);
+end
 
 % Extract the domain:
 [a, b] = domain(f);
 [c, d] = domain(g);
 
-% No support for unbounded domains:s
+% No support for unbounded domains:
 if ( any(isinf([a b c d])) )
-    error('CHEBFUN:conv:bounded', ...
+    error('CHEBFUN:CHEBFUN:conv:bounded', ...
         'CONV only supports CHEBFUN objects on bounded domains.');
 end
 
-if ( issing(f) || issing(g) || nargin == 3 )
+if ( oldMethod || issing(f) || issing(g) )
     % Call the old (and slow) version of CONV if we are not based on CHEBTECHS.
     h = oldConv(f, g);
-    return
-end
+    
+else
 
-% Ensure that g is the signal (i.e., on the larger domain) and f is the filter:
-if ( (b - a) > (d - c) )
-    h = conv(g, f);
-    return
-end
+    % Ensure g is the signal (i.e., on the larger domain) and f is the filter:
+    if ( (b - a) > (d - c) )
+        h = conv(g, f);
+        return
+    end
 
-% Initialize the output:
-h = chebfun(0, [a + c, b + d]);
-% Deal with piecewise CHEBFUN objects by looping over each of the interactions:
-for j = 1:numel(f.funs)
-    for k = 1:numel(g.funs)
-        % Compute the contribution of jth fun of f with kth fun of g:
-        hjk = conv(f.funs{j}, g.funs{k});  
-        % Add this contribution:
-        for i = 1:numel(hjk)
-            h = myplus(h, chebfun(hjk(i)));
+    % Initialize the output:
+    h = chebfun(0, [a + c, b + d]);
+    % Deal with piecewise CHEBFUN objects by looping over each interaction:
+    for j = 1:numel(f.funs)
+        for k = 1:numel(g.funs)
+            % Compute the contribution of jth fun of f with kth fun of g:
+            hjk = conv(f.funs{j}, g.funs{k});  
+            % Add this contribution:            
+            h = myplus(h, chebfun(hjk));
         end
     end
+    
+    % Make sure that point values are not added twice:
+    dom = domain(h);
+    intDom = dom(2:end-1);
+    h.pointValues(2:end-1) = 1/2*(feval(h, intDom.', 'left') + ...
+        feval(h, intDom.', 'right'));
+    
 end
 
+% Truncate:
+if ( same )
+    h = restrict(h, [a, b]);
+end
+
+% Transpose:
 if ( transState )
     h = h.';
 end
@@ -93,21 +141,18 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function f = myplus(f, g)
+function h = myplus(f, g)
 % Modified PLUS() which pads with zeros to fulfil domain requirements.
+%  Note f is always on the largest possible domain. g is on a subdomain of f
 
 % Tidy the domains:
 [f, g] = tweakDomain(f, g);
-
-% f is always on the largest possible domain. g is on a subdomain of f:
 [c, d] = domain(g);    
-fTmp = restrict(f, [c, d]); % f{c, d}
-f = defineInterval(f, [c, d], fTmp + g); % f{c, d} = f{c, d} + g;
 
-% Make sure that point values are not added twice:
-dom = domain(f);
-intDom = dom(2:end-1);
-f.pointValues(2:end-1) = 1/2*(feval(f, intDom.', 'left') + feval(f, intDom.', 'right'));
+fTmp = restrict(f, [c, d]); % f{c, d}
+hTmp = fTmp + g;            % h{c, d} = f{c, d} + g;
+h = defineInterval(f, [c, d], hTmp); 
+
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -128,18 +173,25 @@ dom(isnan(dom)) = [];
 hs = max(hscale(f), hscale(g));
 vs = 2*max([vscale(f), vscale(g)]);
 
-% Avoid resampling for speed up:
+% Set preferences:
+%
+% TODO:  CHEBFUN is not supposed to set the refinementFunction preference
+% because it doesn't belong to the list of "abstract" preferences required of
+% all techs.  Do we really need to alter it here?
 p = chebfunpref();
-p.enableBreakpointDetection = false;
-p.enableSingularityDetection = false;
+p.splitting = false;
+p.blowup = false;
 p.techPrefs.extrapolate = true;
-p.techPrefs.resampling = false;
-p.techPrefs.sampletest = false;
+p.techPrefs.refinementFunction = 'nested';
+p.techPrefs.sampleTest = false;
 
 % Construct FUNS:
 funs = cell(1, length(dom)-1);
 for k = 1:length(dom)-1  
-    newFun = bndfun(@(x) convIntegral(x, f, g), dom(k:k+1), vs, hs, p);
+    data.domain = dom(k:k+1);
+    data.vscale = vs;
+    data.hscale = hs;
+    newFun = bndfun(@(x) convIntegral(x, f, g), data, p);
     vs = max(get(newFun, 'vscale'), vs); 
     funs{k} = newFun;
 end
@@ -169,8 +221,16 @@ for k = 1:length(x)
         ends = union(x(k) - g.domain, f.domain);
         dom = [A, ends((A < ends) & (ends < B)), B];
         for j = 1:length(dom)-1
-            out(k) = out(k) + integral(@(t) feval(f, t).*feval(g, x(k) - t), ...
-                dom(j), dom(j+1), 'AbsTol', 1e-15, 'RelTol', 1e-15);
+            % INTEGRAL is not available in versions of MATLAB prior to R2012a,
+            % so if we're running on an older version, fall back to QUADGK.
+            integrand = @(t) feval(f, t).*feval(g, x(k) - t);
+            if ( verLessThan('matlab', '7.14') )
+                out(k) = out(k) + quadgk(integrand, dom(j), dom(j+1), ...
+                    'AbsTol', 1e-15, 'RelTol', 100*eps);
+            else
+                out(k) = out(k) + integral(integrand, dom(j), dom(j+1), ...
+                    'AbsTol', 1e-15, 'RelTol', 1e-15);
+            end
         end
     end
 end

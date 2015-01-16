@@ -4,7 +4,8 @@ function varargout = chebtest(varargin)
 %   directory $chebfunroot/tests/. These m-files should return a scalar,
 %   vector, or matrix of logical values. A test is deemed to pass if all the
 %   returned values are logical true.  There is no functional output from
-%   CHEBTEST, but the data is piped to the command window with fprintf.
+%   CHEBTEST, but the data is piped to the command window with fprintf. Note
+%   that CHEBTEST will automatically close any open figure windows.
 %
 %   CHEBTEST('DIR1', 'DIR2', ...) will run only those tests given as inputs,
 %   i.e., those in <chebfunroot>/tests/DIR1, $chebfunroot/tests/DIR2, and so
@@ -59,10 +60,8 @@ function varargout = chebtest(varargin)
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
-% [TODO]: Preferences.
-
 % Find directory in which Chebfun was installed:
-installDir = fileparts(which('chebtest'));
+installDir = chebfunroot();
 
 % Set path to the tests/ subdirectory:
 testsDir = fullfile(installDir, 'tests');
@@ -102,7 +101,8 @@ if ( lightMode )
             'Running in --light mode ignores additional directory information.');
     end
     % Folders to test in '--light' mode.
-    args = {'chebtech', 'chebtech1', 'chebtech2', 'fun', 'bndfun', 'chebfun'};
+    args = {'chebtech', 'chebtech1', 'chebtech2', 'classicfun', 'bndfun', ...
+        'chebfun'};
 end
 
 if ( ~isempty(args) ) 
@@ -117,7 +117,7 @@ end
 
 % If testDirNames is empty here, something is wrong.
 if ( isempty(testDirNames) )
-    error('CHEBFUN:chebtest:TestsNotFound', ...
+    error('CHEBFUN:chebtest:testsNotFound', ...
         ['Could not locate test directories. ' ...
          'Please check that Chebfun has been installed correctly.']);
 end
@@ -140,7 +140,7 @@ for k = 1:numDirs
         nextResults = runTestsInDirectory(testDir, quietMode);
         allResults = [allResults ; nextResults]; %#ok<AGROW>
     else
-        warning('CHEBFUN:chebtest:DirNotFound', ...
+        warning('CHEBFUN:chebtest:dirNotFound', ...
             'Test directory ''%s'' not found. Skipping.', testDir);
     end
     fprintf('\n');
@@ -176,15 +176,8 @@ cd(currDir);
 
 % Write the log if requested to.
 if ( writeLog )
-    logDir = fullfile(installDir, 'logs');
-    if ( ~exist(logDir, 'dir') )
-        [success, msg] = mkdir(installDir, 'logs');
-        if ( ~success )
-            warning('CHEBFUN:chebtest:writepermission', msg);
-        end
-    end
     filename = ['chebtest-' datestr(now, 'yyyymmddHHMMSS') '.log'];
-    writeToLog(fullfile(logDir, filename), allResults);
+    writeToLog(filename, allResults);
 end
 
 % Return.
@@ -229,6 +222,11 @@ numFiles  = numel(testFiles);
 durations = zeros(numFiles, 1);
 errorMessages = {'FAILED', 'CRASHED'};
 
+% TODO: Eventually this should be removed.
+% We don't want these warning to be displayed in CHEBTEST:
+warnState = warning('off', 'CHEBFUN:CHEBFUN:vertcat:join');
+warning('off', 'CHEBFUN:CHEBOP2:chebop2:experimental')
+
 % Attempt to run all of the tests:
 try % Note, we try-catch as we've CD'd and really don't want to end up elsewhere
     
@@ -263,7 +261,11 @@ try % Note, we try-catch as we've CD'd and really don't want to end up elsewhere
 
     end
     
+    warning(warnState);
+    
 catch ME
+    
+    warning(warnState);
     
     % We failed. Return to the starting directory and rethrow the error:
     cd(currDir)
@@ -358,6 +360,12 @@ function duration = runTest(testFile)
 %   If executing TESTFILE crashes, this is caught in a try-catch statement, and
 %   RUNTTEST returns DURATION = -2.
 
+% Store current default preference states:
+prefState1 = chebfunpref();
+prefState2 = cheboppref();
+% Close any open windows:
+close all
+
 % Attempt to run the test:
 try
     tstart = tic();
@@ -373,10 +381,16 @@ try
 catch ME %#ok<NASGU>
     % We crashed. This is bad. Return CRASHED flag.
     duration = -2;
-
+    
     % But we _don't_ want to throw an error.
     %rethrow(ME)
 end
+
+% Close any windows the test may have left open:
+close all
+% Ensure global preferences aren't modified by tests.
+chebfunpref.setDefaults(prefState1);
+cheboppref.setDefaults(prefState2);
 
 end
 
@@ -395,7 +409,7 @@ data = data';
 
 fid = fopen(filename, 'w+');
 if ( fid < 0 )
-    warning('CHEBFUN:chebtest:writepermission', ...
+    warning('CHEBFUN:chebtest:writePermission', ...
         'Unable to write to file %s', filename);
 else
     fprintf(fid, '%s,%s,%s\n', columnTitles{:});

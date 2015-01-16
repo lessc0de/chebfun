@@ -15,7 +15,7 @@ function varargout = roots( F, varargin )
 %   ROOTS(F, 'ms') or ROOTS(F, 'marchingsquares') always employs the marching
 %   squares algorithm.
 %
-%   ROOTS(F,'resultant') always employs the algorithm based on the hidden
+%   ROOTS(F, 'resultant') always employs the algorithm based on the hidden
 %   variable resultant method.
 %
 %   [1] Y. Nakatsukasa, V. Noferini, and A. Townsend, Computing the common zeros
@@ -24,13 +24,13 @@ function varargout = roots( F, varargin )
 % See also CHEBFUN2/ROOTS, CHEBFUN/ROOTS.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Maximum degree for resultant method:
 max_degree = 200;  
 
 % Empty check:
-if isempty(F)  
+if ( isempty(F) )
     varargout = {[]};
     return
 end
@@ -40,30 +40,42 @@ g = F.components{2};
 [nf, mf] = length(f);
 [ng, mg] = length(g);
 % Maximum degree:
-dd = max([mf nf mg ng]);  
+dd = max([mf, nf, mg, ng]); 
 
-if ( isempty(varargin) && dd <= max_degree )
-    [xroots, yroots] = roots_resultant(F);
-    xroots = xroots.'; 
-    yroots = yroots.';
-elseif ( isempty(varargin) )
-    [xroots, yroots] = roots_marchingSquares(F);
-else
-    if strcmpi(varargin{1}, 'ms') || strcmpi(varargin{1}, 'marchingsquares')
-        [xroots,yroots] = roots_marchingSquares(F);
-    elseif strcmpi(varargin{1},'resultant')
-        [xroots,yroots] = roots_resultant(F);
-        xroots = xroots.'; 
-        yroots = yroots.';
-    else
-        error('CHEBFUN2V:ROOTS', 'Unrecognised optional argument.');
-    end
+validArgs = {'ms', 'marchingsquares', 'resultant'};
+if ( (nargin > 1) && ~any(strcmpi(varargin{1}, validArgs)) )
+    error('CHEBFUN:CHEBFUN2V:roots:badInput', ...
+        'Unrecognised optional argument.');
 end
 
-if nargout <= 1
-    varargout = {[xroots.'; yroots.'].'};
+
+if ( isempty(varargin) )
+    % If rootfinding method has not been defined, then use resultant if
+    % degrees are small: 
+    if ( dd <= max_degree ) 
+        [xroots, yroots] = roots_resultant(F);
+    else
+        [xroots, yroots] = roots_marchingSquares(F);
+        xroots = xroots.'; 
+        yroots = yroots.';
+    end
+elseif ( strcmpi(varargin{1}, 'resultant') )
+    % If the user wants the resultant method, then use it: 
+    [xroots, yroots] = roots_resultant(F);
+elseif ( any( strcmpi(varargin{1}, {'ms', 'marchingsquares'} ) ) )
+    % If the user wants the marching squares method, then use it: 
+    [xroots, yroots] = roots_marchingSquares(F);
+    xroots = xroots.'; 
+    yroots = yroots.';
 else
-    varargout = {xroots.',yroots.'};
+    % Print error. Unknown method. 
+    error('CHEBFUN2V:ROOTS:METHOD', 'Unknown rootfinding method.') 
+end
+
+if ( nargout <= 1 )
+    varargout{1} = [xroots ; yroots].';
+else
+    varargout = {xroots, yroots};
 end
 
 end
@@ -114,7 +126,10 @@ g = g/abs(g.pivotValues(1));
 
 %%%%% subdivision for accuracy when dynamical range is an issue %%%%%%%%
 % find region in which roots might have been missed
-F = chebpoly2(f); G = chebpoly2(g);
+F = chebcoeffs2(f); 
+G = chebcoeffs2(g);
+F = rot90(F, -2);
+G = rot90(G, -2);
 
 xpts = linspace(xmin,xmax,2*max(size(F,2),size(G,2)));
 ypts = linspace(ymin,ymax,2*max(size(F,1),size(G,1)));
@@ -369,7 +384,7 @@ else
     % cutoff negligible B
     nrmB = norm(B(:,:,end),'fro');
     for ii=1:size(B,3)
-        if norm(B(:,:,ii),'fro')/nrmB > 10*eps,    break;    end
+        if norm(B(:,:,ii),'fro')/nrmB > eps/2,    break;    end
     end
     B = B(:,:,ii:end);
     ns = size(B);
@@ -719,14 +734,15 @@ function D = matrixChebfft(A)
 n = size(A,1); k = size(A,2)/size(A,1);  % get matrix size and degree.
 
 if ( abs( k - round(k) ) > 0 )
-    error('Degree must be integer'); 
+    error('CHEBFUN:CHEBFUN2V:roots:matrixChebfft:badDegree', ...
+        'Degree must be integer');
 end
 
 D = A;
 for jj = 1:n  % for each column of A
     B = A(:,jj:n:n*k);
-    C = chebtech2.vals2coeffs(B.').';   % convert first column of each coefficient to values.
-    D(:,jj:n:n*k) = C;    % assign to output.
+    C = chebtech2.vals2coeffs(B.');   % convert first column of each coefficient to values.
+    D(:,jj:n:n*k) = rot90(C, -1);     % assign to output.
 end
 
 end
@@ -851,7 +867,7 @@ if exist('n','var')==0,
     n = 300;
 end
 
-x = chebpts(n,ends(1:2)); y = chebpts(n,ends(3:4));
+x = mypoints(n,ends(1:2)); y = mypoints(n,ends(3:4));
 [xx, yy]=meshgrid(x,y); F = f(xx,yy);
 
 % vertical scale for machine precision
@@ -859,6 +875,7 @@ vscl = max(1,max(abs(F(:))));  % don't go for more than absolute accuracy.
 
 % Compute bivariate Chebyshev T coefficients.
 C = chebfun2.vals2coeffs(F);
+C = rot90(C, -2);
 
 % Very simple truncation of the coefficients.
 %m = find(max(abs(C))>100*eps*vscl,1,'first'); n = find(max(abs(C.'))>100*eps*vscl,1,'first');
@@ -887,7 +904,8 @@ dom = fy.domain;
 
 nf = f.nComponents; 
 if ( nf > 2 )
-    error('CHEBFUN2:ROOTS','CHEBFUN2 is unable to find zero surfaces.');
+    error('CHEBFUN:CHEBFUN2V:roots:zeroSurface', ...
+        'CHEBFUN2 is unable to find zero surfaces.');
 end
 
 if ( length(fx) == 1 || length(fy) == 1 )   % one of them is of the form u(x)v(y)
@@ -970,7 +988,7 @@ else
     J = @(x,y) [feval(fx,x,y) feval(fy,x,y);...
                                     feval(gx,x,y) feval(gy,x,y)];  % Jacobian
     
-    warnstate = warning('off','CHEBFUN2:NEWTON');   % turn warnings off, and capture Newton failure instead.
+    warnstate = warning('off','CHEBFUN:CHEBFUN2:NEWTON');   % turn warnings off, and capture Newton failure instead.
     for kk = 1:size(r,1)
         x0 = [r(kk,1), r(kk,2)].';
         dx = 1; 
@@ -991,7 +1009,8 @@ else
     % If all the Newton iterations failed then some roots may be
     % inaccurate.
     if ( NewtonFail )
-        warning('CHEBFUN2V:ROOTS:NewtonFail','Iterates may have diverged some of the computed roots may be not be accurate.')
+        warning('CHEBFUN:CHEBFUN2V:roots:newtonFail', ...
+            'Iterates may have diverged some of the computed roots may be not be accurate.')
     end
 end
 
@@ -1155,12 +1174,14 @@ end
 % x1 and y1 must be vectors with same number of points (at least 2).
 if sum(size(x1) > 1) ~= 1 || sum(size(y1) > 1) ~= 1 || ...
         length(x1) ~= length(y1)
-    error('X1 and Y1 must be equal-length vectors of at least 2 points.')
+    error('CHEBFUN:CHEBFUN2:roots:intersections:badInputs1', ...
+        'X1 and Y1 must be equal-length vectors of at least 2 points.')
 end
 % x2 and y2 must be vectors with same number of points (at least 2).
 if sum(size(x2) > 1) ~= 1 || sum(size(y2) > 1) ~= 1 || ...
         length(x2) ~= length(y2)
-    error('X2 and Y2 must be equal-length vectors of at least 2 points.')
+    error('CHEBFUN:CHEBFUN2:roots:intersections:badInputs2', ...
+        'X2 and Y2 must be equal-length vectors of at least 2 points.')
 end
 
 
@@ -1314,4 +1335,27 @@ end
 
 % Plot the results (useful for debugging).
 % plot(x1,y1,x2,y2,x0,y0,'ok');
+end
+
+
+function x = mypoints(n, dom)
+% Get the sample points that correspond to the right grid for a particular
+% technology.
+
+% What tech am I based on?:
+tech = chebfunpref().tech();
+if ( ischar(tech) )
+    tech = eval(tech);
+end
+
+if ( isa(tech, 'chebtech2') )
+    x = chebpts( n, dom, 2 );   % x grid.
+elseif ( isa(tech, 'chebtech1') )
+    x = chebpts( n, dom, 1 );   % x grid.
+elseif ( isa(tech, 'trigtech') )
+    x = trigpts( n, dom );   % x grid.
+else
+    error('CHEBFUN:CHEBFUN2V:roots:techType', 'Unrecognized technology');
+end
+
 end

@@ -46,7 +46,8 @@ pass(1,5) = normest(f - f1) < tol;
 % The absolute value of all points on the unit circle should be 1:
 f = chebfun(@(x) exp(1i*x), pref);
 g = abs(f);
-pass(1,6) = normest(g-1) == 0;
+tol = 10*get(g, 'epslevel')*get(g, 'hscale');
+pass(1,6) = normest(g-1) < tol ;
 
 % Real, imaginary and complex CHEBFUN objects:
 fHandle = {@(x) sin(pi*x), @(x) -sin(pi*x), @(x) sin(pi*x), @(x) -sin(pi*x)};
@@ -132,8 +133,7 @@ x = diff(dom) * rand(100, 1) + dom(1);
 
 pow = -1.64;
 op = @(x) (x-dom(1)).^pow;
-pref.singPrefs.exponents = [pow 0];
-f = chebfun(op, dom, pref);
+f = chebfun(op, dom, 'exps', [pow 0]);
 g = abs(f);
 vals_g = feval(g, x); 
 vals_exact = abs(feval(op, x));
@@ -185,8 +185,7 @@ pass(9,:) = norm(err, inf) < 1e1*epslevel(g)*vscale(g);
 
 % Blow-up function:
 op = @(x) -x.^2.*(1+exp(-x.^2));
-pref.singPrefs.exponents = [2 2];
-f = chebfun(op, dom, pref);
+f = chebfun(op, dom, 'exps', [2 2]);
 g = abs(f);
 gVals = feval(g, x);
 opAbs = @(x) abs(-x.^2.*(1+exp(-x.^2)));
@@ -209,5 +208,13 @@ gVals = feval(g, x);
 gExact = opAbs(x);
 err = gVals - gExact;
 pass(11,:) = norm(err, inf) < 2e1*epslevel(g)*vscale(g);
+
+% test trig functions
+f = chebfun(@(x) sin(3*x), [0, 2*pi], 'trig');
+h = chebfun(@(x) sin(3*x), [0, 2*pi]);
+g = abs(f);
+tech = pref.tech;
+pass(12, :) = isequal(get(g.funs{1}, 'tech'), tech);
+pass(13, :) = norm(g - abs(h), inf ) < 100*vscale(h)*epslevel(h);
 
 end

@@ -18,7 +18,7 @@ function [Q, R, E] = qr(f, outputFlag, methodFlag)
 %   to use in computing the QR factorisation. METHOD = 'built-in' will form a
 %   weighted Legendre-Vandermonde matrix and orthogonalise this with the
 %   standard Matlab QR algorithm. METHOD = 'householder' uses the technique
-%   described in [1]. METHOD = 'householder' is the default option.
+%   described in [1]. METHOD = 'built-in' is the default option.
 %
 %   [1] L.N. Trefethen, "Householder triangularization of a quasimatrix", IMA J
 %   Numer Anal (2010) 30 (4): 887-897.
@@ -47,8 +47,8 @@ if ( isempty(f) )
 end
 
 % Default options:
-% defaultMethod = 'built-in';
-defaultMethod = 'householder';
+defaultMethod = 'built-in';
+%defaultMethod = 'householder';
 defaultOutput = 'matrix';
 
 if ( nargin < 3 || isempty(methodFlag) )
@@ -66,9 +66,8 @@ if ( size(f, 2) == 1 )
     return
 end
 
-% TODO: This should probably be put back in if possible? NH Apr 2014
 % Simplify so that we don't do any extra work: (QR is O(m*n^2)? :/ )
-% f = simplify(f);
+f = simplify(f);
 
 % Decide which algorithm to use:
 if ( strcmpi(methodFlag, 'householder') )
@@ -90,13 +89,19 @@ end
 % knowledge of R here?
 col_acc = f.epslevel.*f.vscale;  % Accuracy of each column in f.
 glob_acc = max(col_acc);         % The best of these.
-Q.epslevel = glob_acc./Q.vscale; % Scale out vscale of Q.
+epslevelApprox = glob_acc./Q.vscale; % Scale out vscale of Q.
+Q.epslevel = updateEpslevel(Q, epslevelApprox);
 
 end
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [f, R, E] = qr_builtin(f, outputFlag)
+
+persistent WP invWP type
+% Persistently store these matrices, which only depend on the length of the
+% input (and the type of chebtech!), not the data. This is very helpful for
+% CHEBFUN2 which relies heavily on QR.
 
 % We must enforce that f.coeffs has at least as many rows as columns:
 [n, m] = size(f);
@@ -107,17 +112,24 @@ end
 
 % Project the values onto a Legendre grid: (where integrals of polynomials
 % p_n*q_n will be computed exactly and on an n-point grid)
-[n, m] = size(f);
-xc = f.chebpts(n);
-vc = f.barywts(n);
-[xl, wl, vl] = legpts(n);
-P = barymat(xl, xc, vc);
-W = spdiags(sqrt(wl.'), 0, n, n);
+if ( length(WP) ~= n || (~isempty(type) && isa(f, type)) )
+    xc = f.chebpts(n);
+    vc = f.barywts(n);
+    [xl, wl, vl] = legpts(n);
+    P = barymat(xl, xc, vc);     % Map from Chebyshev values to Legendre values.
+    W = spdiags(sqrt(wl.'), 0, n, n); % Weighted QR with Gauss-Legendre weights.
+    Winv = spdiags(1./sqrt(wl.'), 0, n, n);    % Undo the weighting used for QR.
+    Pinv = barymat(xc, xl, vl); % Revert to Chebyshev grid (from Legendre grid).
+    % Persistent storage:
+    WP = W*P;
+    invWP = Pinv*Winv;
+    type = class(f);
+end
 
 % Compute the weighted QR factorisation:
 values = f.coeffs2vals(f.coeffs);
 if ( nargout == 3 )
-    [Q, R, E] = qr(W * P * values, 0);
+    [Q, R, E] = qr(WP * values, 0);
     % For consistency with the MATLAB QR behavior:
     if ( (nargin == 1) || ...
         ~(strcmpi(outputFlag, 'vector') || isequal(outputFlag, 0)) )
@@ -126,23 +138,19 @@ if ( nargout == 3 )
         E = I(:,E);
     end
 else
-    [Q, R] = qr(W * P * values, 0);
+    [Q, R] = qr(WP * values, 0);
 end
 
 % Revert to the Chebyshev grid (and remove the weight and enforce diag(R) >= 0).
-Winv = diag(1./sqrt(wl));   % Undo the weighting used for QR.
-Pinv = barymat(xc, xl, vl); % Revert to Chebyshev grid (from Legendre grid).
-
-% Enforce diag(R) >= 0.
 s = sign(diag(R));
 s(~s) = 1;
 S = spdiags(s, 0, m, m);
-Q = Pinv*Winv*Q*S;          % Fix Q.
-R = S*R;                    % Fix R.
+Q = invWP*Q*S;                 % Fix Q.
+R = S*R;                       % Fix R.
 
 % Apply data to chebtech:
-f.coeffs = f.vals2coeffs(Q);            % Compute new coefficients.
-f.vscale = max(abs(Q), [], 1);
+f.coeffs = f.vals2coeffs(Q);   % Compute new coefficients.
+f.vscale = max(abs(Q), [], 1); % Update vscale
 
 end
 
@@ -181,7 +189,7 @@ end
 % Compute the corresponding Chebyshev coefficients:
 f.coeffs = f.vals2coeffs(Q);
 % Trim the unneeded ones:
-f.coeffs(1:newN/2,:) = [];
+f.coeffs(newN/2+1:end,:) = [];
 
 % Update the vscale:
 f.vscale = getvscl(f);

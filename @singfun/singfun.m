@@ -41,44 +41,41 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
 %   singularities along with the SMOOTHFUN representation of the smooth part are
 %   stored in corresponding member fields of the instantiation.
 %
-%   SINGFUN(OP, [], SINGTYPE) constructs a SINGFUN object as above. SINGTYPE 
-%   is 1x2 cell array of strings and type of the singularities specified by 
-%   these strings may help the singularity detector to determine the order 
-%   of the singularities more efficiently and save some computing time. Valid
-%   strings for SINGTYPE are 'none', 'pole', 'sing' or 'root'. Note that a 
-%   place holder must be given next to OP for the constructor to work 
-%   properly.
+%   SINGFUN(OP, DATA) constructs a SINGFUN object using the data in the MATLAB
+%   structure DATA.  DATA fields recognized by SINGFUN are.
+%     DATA.SINGTYPE    (Default:  Determined by CHEBFUNPREF)
+%         A 1x2 cell array of strings and type of the singularities specified
+%         by these strings may help the singularity detector to determine the
+%         order of the singularities more efficiently and save some computing
+%         time.  Valid strings for SINGTYPE are 'none', 'pole', 'sing' or
+%         'root'.
+%     DATA.EXPONENTS   (Default:  Empty)
+%         If DATA.EXPONENTS is nonempty, then instead of determining the
+%         singularity types and orders by sampling the function values at -1
+%         and 1, the constructor takes the values saved in the 1x2 vector
+%         EXPONENTS as the orders of the singularities.
+%   If any fields in DATA are empty or not supplied, or if DATA itself is empty
+%   or not supplied, appropriate default values are set.  Any fields in DATA
+%   which are not recognized will be passed as-is to the SMOOTHFUN constructor.
 %
-%   SINGFUN(OP, EXPONENTS) constructs a SINGFUN object. Instead of determining
-%   the singularity types and orders by sampling the function values at -1 and
-%   1, the constructor takes the values saved in the 1x2 vector EXPONENTS as the
-%   orders of the singularities.
-%
-%   SINGFUN(OP, EXPONENTS, SINGTYPE) and SINGFUN(OP, EXPONENTS, {}) are
-%   equivalent to SINFGUN(OP, EXPONENTS).
-%
-%   SINGFUN(OP, EXPONENTS, SINGTYPE, VSCALE, HSCALE) constructs a SINGFUN 
-%   object. When the smooth part s(x) is approximated, the vertical scale VSCALE
-%   and the horizontal scale HSCALE are passed to the SMOOTHFUN constructor to
-%   facilitate the construction. Note that any of or both of VSCALE and HSCALE 
-%   can be omitted or empty.
-%
-%   SINGFUN(OP, EXPONENTS, SINGTYPE, VSCALE, HSCALE, PREF) constructs a SINGFUN 
-%   using the preferences given by PREF. Note that any of or all of EXPONENTS, 
-%   SINGTYPE, VSCALE, and HSCALE can be omitted or empty in this calling
-%   sequence in the presence of PREF.
+%   SINGFUN(OP, DATA, PREF) constructs a SINGFUN using the preferences given by
+%   PREF.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
-%% NOTES:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% DEVELOPER NOTES:
 %   It is a Matlab requirement to specify exactly which classes are inferior to
 %   a given class. One might think that writing "InferiorClasses = {?smoothfun}"
 %   should be OK but it turns out that subclasses do not inherit the attribute
 %   of being inferior and all inferior clases/subclasses should be mentioned 
 %   explicitly.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    %% Properties of SINGFUN objects
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% CLASS PROPERTIES:
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     properties ( Access = public )
         % Smooth part of the representation.
         smoothPart      % (SMOOTHFUN)
@@ -87,130 +84,111 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         exponents       % (1x2 double)
     end
     
-    %% CLASS CONSTRUCTOR (IMPLEMENTED BY THIS M-FILE):
-    methods
-        function obj = singfun(op, exponents, singType, vscale, hscale, pref)   
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% CLASS CONSTRUCTOR:
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    methods ( Access = public, Static = false )
+        
+        function obj = singfun(op, data, pref)
             
-            %% Get Preferences
-            % Check for preferences in the very beginning.
-            if ( (nargin < 6) || isempty(pref) )
-                % Determine preferences if not given.
-                pref = chebfunpref();
-            else
-                % Merge if some preferences are given.
-                pref = chebfunpref(pref);
-            end           
-            
-            %% Cases based on the number of arguments
-            % Case 0: No input arguments, return an empty object.
-            if ( nargin == 0 )
+            % Parse inputs.
+            if ( nargin < 1 )
+                % No input arguments; return an empty SINGFUN.
                 obj.smoothPart = [];
                 obj.exponents = [];
                 return
             end
-            
-            % Case 1: One input argument.
+
+            if ( (nargin < 2) || isempty(data) )
+                    data = struct();
+            end
+
+            if ( (nargin < 3) || isempty(pref) )
+                pref = chebfunpref();
+            else
+                pref = chebfunpref(pref);
+            end
+
+            data = parseDataInputs(data, pref);
+
+            % Leave SINGFUN OPs alone, and upgrade SMOOTHFUN OPs to SINGFUNs.
             if ( nargin == 1 )
                 if ( isa(op, 'singfun') )
                     obj = op;
                     return
                 elseif ( isa(op, 'smoothfun') )
-                    % if OP is a SMOOTHFUN, cast it to a SINGFUN:
                     obj.smoothPart = op;
                     obj.exponents = [0, 0];
-                    
                     return
-                else
-                    % Make sure the exponents are empty.
-                    exponents = [];
                 end
             end
-            
-            % Case 2: Two input arguments.
-            if ( (nargin == 2) || ~isempty(exponents) )
-                % Exponents passed, store them.
-                obj.exponents = exponents;
-            end
-                        
-            % Case 3: Three or more input arguments.
-            % The user can choose a singularity detection algorithm by passing
-            % appropriate strings in the argument "singType", which is a cell
-            % array. If, however, the user doesn't provide any preferences
-            % regarding the algorithm, the most generic algorithm, which tries
-            % to find fractional order singularities is used.
-            if ( nargin >= 3 && isempty(exponents) )
-                if ( isempty(singType) )
-                    % Singularity types and exponents not given. Assume
-                    % fractional poles or generic singularities at each
-                    % end.
-                    singType = {'sing', 'sing'};
-                else
-                    % Singularity types given, make sure the strings are OK.
-                    checkSingTypes(singType);
+
+            % Find exponents.poly
+            if ( ~isempty(data.exponents) )
+                % Check values of supplied exponents.
+                if ( any(size(data.exponents) ~= [1, 2]) || ...
+                        ~isa(data.exponents, 'double') )
+                    error('CHEBFUN:SINGFUN:singfun:badExponents', ...
+                        'Exponents must be a 1x2 vector of doubles.');
                 end
+
+                % If any of EXPONENTS is NaN, try to determine:
+                maskNaN = isnan(data.exponents);
+                if ( any(maskNaN) )
+                    tmpExps = singfun.findSingExponents(op, data.singType);
+                    data.exponents(maskNaN) = tmpExps(maskNaN);
+                end
+
+                obj.exponents = data.exponents;
             else
-                if ( isempty(exponents) )
-                    singType = {'sing', 'sing'};
-                end
+                % Exponents not given.  Determine them.
+                obj.exponents = singfun.findSingExponents(op, data.singType);
             end
-            
-            %% Misc Checks on the Inputs
-            
-            % Make sure that op is a function handle or a smoothfun:
+
+            % Make sure that op is a function handle or a smoothfun.
             if ( ~isa(op, 'function_handle') && ~isa(op, 'smoothfun') )
-                error( 'CHEBFUN:SINGFUN:constructor', ...
-                    'First argument must be a function handle or a smoothfun.');
+                error( 'CHEBFUN:SINGFUN:singfun:badOp', ...
+                    ['First argument must be a function handle or a ', ...
+                     'SMOOTHFUN, not a %s.'], class(op));
             end
-            
-            % Check to avoid array-valued operators:
+
+            % Check to avoid array-vapolylued operators.
             if ( size(feval(op, 0), 2) > 1 )
-                error( 'CHEBFUN:SINGFUN:constructor', ...
-                    'SINGFUN class does not support array-valued objects.' );
+                error('CHEBFUN:SINGFUN:singfun:arrayValued', ...
+                    'SINGFUN does not support array-valued construction.');
             end
-            
-            % Handle cases for vscale and hscale.
-            if ( nargin <= 3 )
-                % If both are not passed as argument, set them to empty.
-                vscale = [];
-                hscale = [];
+
+            % Extrapolate when the given function blows up.
+            if ( any(obj.exponents < 0) )
+                pref.techPrefs.extrapolate = true;
             end
-            
-            if ( nargin == 4 )
-                % vscale passed, but hscale missing, set it to empty:
-                hscale = [];
-            end                   
-            
-            %% Find Exponents
-            % If exponents were passed, make sure they are in correct shape.
-            if ( ~isempty(exponents) )
-                if ( any(size(exponents) ~= [1, 2]) || ...
-                        ~isa(exponents, 'double') )
-                    error( 'CHEBFUN:SINGFUN:constructor', ...
-                        'Exponents must be a 1X2 vector of doubles.' );
-                end
-            else
-                % Exponents not given, determine them.
-                obj.exponents = singfun.findSingExponents(op, singType);
-            end
-            
-            % If a smoothfun has been passed as the op, store it directly:
+
+            % Construct the smoothPart.
             if ( isa(op, 'smoothfun') )
+                % smoothPart was handed to us.
                 obj.smoothPart = op;
             else
-                %% Construct New Function Handle
+                % Construct New Function Handle
+                
+                % Loosen tolerance:
+                if ( any(obj.exponents) )
+                    pref.eps = max(pref.eps, 1e-14);
+                end
+                
                 % Factor out singular terms from the operator based on the values
                 % in exponents.
                 smoothOp = singOp2SmoothOp(op, obj.exponents);
-                
-                % Construct the smooth part.
-                obj.smoothPart = singfun.constructSmoothPart(smoothOp, ...
-                    vscale, hscale, pref);
+                obj.smoothPart = singfun.constructSmoothPart(smoothOp, data, ...
+                    pref);
             end
         end
+        
     end
     
-    %% METHODS (NON-STATIC) IMPLEMENTED BY THIS CLASS.
-    methods
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% CLASS METHODS:
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    methods ( Access = public, Static = false )
         
         % SINGFUN logical AND.
         h = and(f, g)
@@ -242,11 +220,14 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         % Extract roots at the boundary points -1 and 1.
         [f, rootsLeft, rootsRight] = extractBoundaryRoots(f, numRoots)
         
+        % Extract columns (or rows) of SINGFUN.
+        f = extractColumns(f, colIdx)
+        
         % Evaluate a SINGFUN.
         y = feval(f, x)
         
         % SINGFUN does not support FIX.
-        g = fix(f);
+        g = fix(f)
         
         % Flip columns of an array-valued SINGFUN object.
         f = fliplr(f)
@@ -255,10 +236,10 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         f = flipud(f)
         
         % SINGFUN does not support FLOOR.
-        g = floor(f);
+        g = floor(f)
         
         % Get method:
-        val = get(f, prop);
+        val = get(f, prop)
         
         % Imaginary part of a SINGFUN.
         f = imag(f)
@@ -281,6 +262,14 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         % Test if a SINGFUN has any NaN values.
         out = isnan(f)
         
+        function out = isPeriodicTech(f)
+        %ISPERIODICTECH   Test if the smooth part of f is is constructed with a 
+        %basis of periodic functions. 
+        
+            % Calls ISPERIODICTECH on the SMOOTHFUN part.
+            out = isPeriodicTech(f.smoothPart);
+        end
+        
         % True for real SINGFUN.
         out = isreal(f)
         
@@ -289,6 +278,9 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         
         % True for zero SINGFUN objects
         out = iszero(f)
+        
+        % Legendre coeffs of a SINGFUN.
+        c = legcoeffs(f, n)
         
         % Length of a SINGFUN.
         len = length(f)
@@ -391,8 +383,11 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         
     end
     
-    %% STATIC METHODS IMPLEMENTED BY THIS CLASS.
-    methods ( Static = true )
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% STATIC METHODS:
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    methods ( Access = public, Static = true )
+        
         % SmoothPart constructor
         s = constructSmoothPart( op, vscale, hscale, pref )
         
@@ -404,43 +399,41 @@ classdef (InferiorClasses = {?chebtech2, ?chebtech1}) singfun < onefun %(See Not
         
         % Finding fractional order singularities (+ve or -ve).
         branchOrder = findSingOrder( op, SingEnd )
-        
-        % Fractional indefinite integral of a ONEFUN.
-        f = fracCumSum(oneFuns, maps ,fracM)
             
         % Make a SINGFUN (constructor shortcut):
         f = make(varargin);
-        
-        % Retrieve and modify preferences for this class.
-        prefs = pref(varargin)
       
         % Convert a SMOOTHFUN to a SINGFUN.
         f = smoothFun2SingFun(f) 
         
         % Construct a zero SINGFUN
         s = zeroSingFun()
+        
     end
     
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% OTHER FUNCTIONS IMPLEMENTED IN THIS M-FILE:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function out = checkSingTypes(singType)
+function checkSingTypes(singType)
 %CHECKSINGTYPES   Function to check types of exponents in a SINGFUN object.
 %   The valid types can be 'sing', 'pole', 'root' or 'none'. If the type is
 %   different than these four strings (ignoring case), an error message is
 %   thrown.
 
 if ( ~isa(singType, 'cell') )
-    error( 'CHEBFUN:SINGFUN:constructor', ...
+    error( 'CHEBFUN:SINGFUN:checkSingTypes:notCell', ...
         'singType must be a 1x2 cell with two strings');
 end
 
-out(1) = any(strcmpi(singType{1}, {'pole', 'sing', 'root', 'none'}));
-out(2) = any(strcmpi(singType{2}, {'pole', 'sing', 'root', 'none'}));
+check(1) = any(strcmpi(singType{1}, {'pole', 'sing', 'root', 'none'}));
+check(2) = any(strcmpi(singType{2}, {'pole', 'sing', 'root', 'none'}));
 
-if ( ~all(out) )
-    error('CHEBFUN:SINGFUN:checkSingTypes', 'Unknown singularity type.');
+if ( ~all(check) )
+    error('CHEBFUN:SINGFUN:checkSingTypes:badType', ...
+        'Unknown singularity type.');
 end
 
 end
@@ -472,6 +465,20 @@ elseif ( exponents(2) )
     % (1-x) factor at the right end point:
     op = @(x) op(x)./(1 - x).^(exponents(2));
     
+end
+
+end
+
+function data = parseDataInputs(data, pref)
+%PARSEDATAINPUTS   Parse inputs from the DATA structure and assign defaults.
+
+if ( ~isfield(data, 'exponents') || isempty(data.exponents) )
+    data.exponents = [];
+end
+
+if ( ~isfield(data, 'singType') || isempty(data.singType) )
+    defaultSingType = pref.blowupPrefs.defaultSingType;
+    data.singType = {defaultSingType, defaultSingType};
 end
 
 end

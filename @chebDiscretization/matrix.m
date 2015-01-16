@@ -13,7 +13,7 @@ function [M, P, B, A, PS] = matrix(disc, dim, domain)
 % See also INSTANTIATE.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Parse inputs
 if ( nargin > 1 )
@@ -25,13 +25,18 @@ end
 
 % Check subinterval compatibility of domain and dimension.
 if ( (length(disc.domain) - 1) ~= length(disc.dimension) )
-    error('CHEBFUN:chebDiscretisation:matrix:subIntDim', ...
+    error('CHEBFUN:CHEBDISCRETIZATION:matrix:subIntDim', ...
         'Must specify one dimension value for each subinterval.')
 end
 
 if ( nargout > 1 && ~isa(disc.source, 'linop') )
-    error('CHEBFUN:chebDiscretizartion:matrix', ...
+    error('CHEBFUN:CHEBDISCRETIZATION:matrix:matrix', ...
         'MATRIX() of a %s can only return one output.', class(disc.source))
+end
+
+if ( any(isinf(disc.domain)) )
+    error('CHEBFUN:CHEBDISCRETIZATION:matrix:isinf', ...
+        'Discretization on unbounded domains is not supported.');
 end
 
 % Construct a square representation of each block individually and
@@ -43,11 +48,11 @@ end
 if ( isa(disc.source, 'linop') )
     
     % Project rows down, and record the projection matrix as well.
-    [PA, P, PS] = disc.reduce(A, S);
-
+    [PA, P, PS] = reduce(disc, A, S);
+    
     % Get constraints:
     B = getConstraints(disc);
-
+    
     % This should restore squareness to the final matrix.
     M = [ B ; PA ];
 
@@ -61,6 +66,5 @@ else
     end
 
 end
-
 
 end

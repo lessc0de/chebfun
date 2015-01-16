@@ -22,32 +22,25 @@ function [f, g, newBreaksLocF, newBreaksLocG] = tweakDomain(f, g, tol, side)
 %   entries F.DOMAIN(J) and G.DOMAIN(K).
 %
 %   F = TWEAKDOMAIN(F), where F is a quasimatrix, tweaks the domain of each of
-%   columns of F.
+%   the columns of F.
+%
+%   F = TWEAKDOMAIN(F, DOM), where DOM is numeric or a DOMAIN object tweaks the
+%   columns of F against themselves and against DOM. In this case, preference
+%   is given to the DOM (i.e., SIDE = 1).
 %
 % See also CHEBFUN/OVERLAP.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
-if ( nargin == 1 || isempty(g) )
-    % Deal with single input case, where F is typically an quasimatrix. Here we
-    % want to ensure that all the columns of F have compatable breaks.
-    if ( numel(f) == 1 )
-        return
-    end
-    if ( nargin < 3 )
-        tol = [];
-    end
-    dom = domain(f);
-    g = chebfun(0, dom);
-    newBreaksLocF = cell(1, numel(f));
-    newBreaksLocG = [];
-    for k = 1:numel(f)
-        [f(k), ~, newBreaksLocF{k}, ~] = tweakDomain(f(k), g, tol, 1);
-    end
-    return
+% Parse some inputs:
+if ( nargin == 1 )
+    % Single input is equivalent to TWEAKDOMAIN(F, []);
+    g = [];
 end
-
+if ( nargin < 3 )
+    tol = [];
+end
 % Return if either f or g are empty as there is nothing to do here:
 if ( isempty(f) || isempty(g) )
     newBreaksLocF = [];
@@ -55,12 +48,47 @@ if ( isempty(f) || isempty(g) )
     return
 end
 
-if ( numel(f) > 1 || numel(g) > 1 )
-    error('CHEBFUN:tweakDomain:quasi', ...
-        'tweakDomain does not support quasimatrices.');
+if ( isnumeric(g) || isa(g, 'domain' ) )
+    % Deal with single input case, where F is typically an quasimatrix. Here we
+    % want to ensure that all the columns of F have compatible breaks.
+    dom = unique(g);
+    if ( numel(f) == 1 && isempty(dom) )
+        % Nothing to do in the scalar case if dom is empty.
+        return
+    end
+    if ( numel(dom) >= 2 )   
+        domGiven = true;
+        dom = g;
+    else
+        domGiven = false;
+        dom = domain(f);                % If not, then use the domain of f.
+    end
+    if ( isempty(tol) )
+    % Set a tolerance relative to the horizontal scale:
+        hsg = norm(dom([1, end]), inf);
+        % Unbounded domains are defined to have hscale = 1:
+        if ( isinf(hsg) ), hsg = 1; end
+        tol = 1e-15*max(hscale(f), hsg);
+    end
+%     dummy = chebfun(0, dom);            % A dummy CHEBFUN to tweak against.
+    dummy = struct('domain', dom);      % No - Use struct to avoid overhead!
+    newBreaksLocF = cell(1, numel(f));  % Initialise storage.
+    for k = 1:numel(f)                  % Loop over columns of f.
+        [f(k), dummy, newBreaksLocF{k}, ignored] = ...
+            tweakDomain(f(k), dummy, tol, 1);
+    end
+    if ( domGiven )
+        g = dummy.domain;
+    end
+    return
 end
 
-if ( nargin < 3 || isempty(tol) )
+if ( numel(f) > 1 || numel(g) > 1 )
+    error('CHEBFUN:CHEBFUN:tweakDomain:quasi', ...
+        'tweakDomain does not support multiple quasimatrix inputs.');
+end
+
+if ( isempty(tol) )
     % Set a tolerance relative to the horizontal scale:
     hs = max(hscale(f), hscale(g));
     tol = 1e-15*hs;
@@ -126,7 +154,9 @@ for k = newBreaksLocF
 end
 for k = newBreaksLocG
     % Change the FUN objects belonging to g:
-    if ( k == 1 )                       % First break point is special.
+    if ( ~isa(g, 'chebfun') )
+        return
+    elseif ( k == 1 )                   % First break point is special.
         g.funs{k} = changeMap(g.funs{k}, g.domain([k,k+1]));
     elseif ( k == numel(g.funs) + 1 )   % As is the last.
         g.funs{k-1} = changeMap(g.funs{k-1}, g.domain([k-1,k]));

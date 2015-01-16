@@ -39,21 +39,21 @@ try
     fr = restrict(f, [-2 0.5]);
     pass(4) = false;
 catch ME
-    pass(4) = strcmp(ME.identifier, 'CHEBFUN:restrict:subdom');
+    pass(4) = strcmp(ME.identifier, 'CHEBFUN:CHEBFUN:restrict:subdom');
 end
 
 try
     fr = restrict(f, [-0.5 2]);
     pass(5) = false;
 catch ME
-    pass(5) = strcmp(ME.identifier, 'CHEBFUN:restrict:subdom');
+    pass(5) = strcmp(ME.identifier, 'CHEBFUN:CHEBFUN:restrict:subdom');
 end
 
 try
     fr = restrict(f, [-1 -0.25 0.3 0.1 1]);
     pass(6) = false;
 catch ME
-    pass(6) = strcmp(ME.identifier, 'CHEBFUN:restrict:subdom');
+    pass(6) = true;
 end
 
 % Check a scalar function without breakpoints.
@@ -125,8 +125,36 @@ g1Exact = op1(x1);
 g2Exact = op2(x2);
 err1 = g1Vals - g1Exact;
 err2 = g2Vals - g2Exact;
+pass(24) = norm([err1 ; err2], inf) < 5*get(g,'epslevel').*get(g,'vscale');
 
-pass(24) = norm([err1 ; err2], inf) < 2*get(g,'epslevel').*get(g,'vscale');
+%% Test a bug from issue #528
+f = chebfun(@(x) abs(x + 0.04), [-1 0.04 1], 'splitting', 'on');
+f = restrict(f, [-0.04 0.04]);
+g = chebfun(@(x) abs(x + 0.04), [-0.04 0.04], 'splitting', 'on');
+err = norm(f - g, inf);
+pass(25) = err < 10*epslevel(g);
+
+%% Test a bug from #727:
+
+f = chebfun(@(x) 4*x.^2-2, [-Inf, Inf]);
+g = restrict(f, [-1,1]);
+pass(26) = abs(f(1)-g(1)) < epslevel(f)*vscale(f);
+
+%% Test a bug from #1026:
+
+f = chebfun(@(t) t.^0.5./exp(t), [0,inf], 'exps', [0.5 0]);
+g = f;
+f(1) = f(1); % restrict@unbndfun is called.
+pass(27) = ( norm(f-g, inf) < epslevel(f) );
+
+%% Test trigfuns:
+f = chebfun(@(x) sin(2*pi*x), [1 2], 'trig');
+g = restrict(f, domain(f));
+pass(28) = ~isPeriodicTech(g);
+g = restrict(f, [1.5, 1.6]);
+h = chebfun(@(x) sin(2*pi*x), [1.5, 1.6]);
+pass(29) = norm(g-h, inf) < 1e-12;
+
 
 end
 
@@ -140,5 +168,5 @@ function pass = test_restrict_one_function(f, f_exact, dom, map, xr)
 %     err2 = max(cellfun(@(d) min(abs(d-fr.domain)), num2cell(dom)))
 %     pass = err2 < tol && all(err(:) < tol); % TODO: remove?
     pass = all(ismember(dom, fr.domain)) && ...
-        all(err(:) < 2e2*fr.vscale*fr.epslevel); 
+        all(err(:) < 5e2*fr.vscale*fr.epslevel); 
 end

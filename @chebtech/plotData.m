@@ -12,7 +12,7 @@ function data = plotData(f, g, h)
 %   passed to PLOT() with the '-' option). 
 %
 %   DATA.xPoints and DATA.yPoints contain the (x, F(x)) data at the Chebyshev
-%   grid used to represent F, and are used for plots with markes (e.g.
+%   grid used to represent F, and are used for plots with marks (e.g.
 %   PLOT(F,'-o').
 %
 %   DATA = PLOTDATA(F, G) is similar but for plot calls of the form PLOT(F, G),
@@ -36,10 +36,12 @@ end
 
 % Get the number of points: (Oversample the wavelength)
 len = max([length(f), length(g), length(h)]);
-npts = min(max(501, round(4*pi*len)), chebtech.techPref().maxPoints);
+npts = min(max(501, round(4*pi*len)), chebtech.techPref().maxLength);
 
 % Initialise the output structure:
-data = struct('xLine', [], 'yLine', [], 'xPoints', [], 'yPoints', [], 'yLim', [inf -inf]);
+data = struct('xLine', [], 'yLine', [], 'xPoints', [], 'yPoints', [], ...
+    'yLim', [], 'defaultXLim', 1, 'defaultYLim', 1);
+
 if ( isempty(g) )       
     % PLOT(F):
     
@@ -50,6 +52,9 @@ if ( isempty(g) )
     % Values on the Cheyshev grid tied to the CHEBTECH F:
     data.xPoints = f.points();
     data.yPoints = f.coeffs2vals(f.coeffs);
+    
+    % yLim:
+    data.yLim = [min(data.yLine(:)) max(data.yLine(:))];
 
 elseif ( isa(g, 'chebtech') )   
     % PLOT(F, G)
@@ -75,6 +80,14 @@ elseif ( isa(g, 'chebtech') )
     data.xPoints = get(prolong(f, len), 'values');
     data.yPoints = get(prolong(g, len), 'values');
     
+    % xLim:
+    xdata = [get(f, 'lval'); data.xLine; get(f, 'rval')];
+    data.xLim = [min(xdata(:)) max(xdata(:))];
+    
+    % yLim:
+    ydata = [get(g, 'lval'); data.yLine; get(g, 'rval')];
+    data.yLim = [min(ydata(:)) max(ydata(:))];
+    
     if ( isa(h, 'chebtech') )
         % PLOT3(F, G, H)
         
@@ -86,12 +99,13 @@ elseif ( isa(g, 'chebtech') )
         
          % Values on oversampled Chebyshev grid:
         data.zLine = get(prolong(h, npts), 'values');
-        data.zPoints = get(prolong(h, len), 'values');  
+        data.zPoints = get(prolong(h, len), 'values');
+        
     end
     
 else
-    error('CHEBFUN:CHEBTECH:plotdata:DataType', ...
-        'Invalid data types.');
+
+    error('CHEBFUN:CHEBTECH:plotData:dataType', 'Invalid data types.');
     
 end
 

@@ -29,8 +29,10 @@ function [x, w, v] = jacpts(n, a, b, int, meth)
 %   Gauss-Chebyshev nodes and quadrature, and are treated specially (as a closed
 %   form of the nodes and weights is available). ALPHA = BETA = 0 calls LEGPTS,
 %   which is a more efficient code.
+% 
+%   When MAX(ALPHA, BETA) > 5 the results may not be accurate. 
 %
-% See also LEGPTS and CHEBPTS.
+% See also CHEBPTS, LEGPTS, LOBPTS, RADAUPTS, HERMPTS, LAGPTS, and TRIGPTS.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. See
 % http://www.chebfun.org/ for Chebfun information.
@@ -55,23 +57,11 @@ interval = [-1, 1];
 method = 'default';
 method_set = 0;
 
-% Deal with trivial cases:
-if ( n < 0 )
-    error('CHEBFUN:jacpts:n', 'First input should be a positive number.');
-elseif ( n == 0 )   % Return empty vectors if n == 0:
-    x = []; 
-    w = []; 
-    v = []; 
-    return
-elseif ( n == 1 )
-    x = (b-a)/(a+b+2);
-    w = 2^(a+b+1)*beta(a+1, b+1);
-    v = 1;
-    return
-end
-
 if ( a <= -1 || b <= -1 )
-    error('CHEBFUN:jacpts:SizeAB', 'Alpha and beta must be greater than -1')
+    error('CHEBFUN:jacpts:sizeAB', 'Alpha and beta must be greater than -1')
+elseif ( max(a, b) > 5 )
+    warning('CHEBFUN:jacpts:largeAB',...
+        'MAX(ALPHA, BETA) > 5. Results may not be accurate')
 end
 
 
@@ -95,10 +85,10 @@ if ( nargin > 3 )
     validStrings = {'default', 'GW', 'ASY', 'REC'};
     if ( ~any(strcmpi(method, validStrings)) )
         if ( strcmpi(method, 'GLR') )
-            error('CHEBFUN:legpts:glr', ...
+            error('CHEBFUN:jacpts:glr', ...
                 'The GLR algorithm is no longer supported.');
         end
-        error('CHEBFUN:legpts:inputs', ['Unrecognised input string: ', method]);
+        error('CHEBFUN:jacpts:inputs', ['Unrecognised input string: ', method]);
     end
 end
 
@@ -110,6 +100,22 @@ elseif ( numel(interval) > 2 )
     warning('CHEBFUN:legpts:domain',...
         'Piecewise intervals are not supported and will be ignored.');
     interval = interval([1, end]);
+end
+
+% Deal with trivial cases:
+if ( n < 0 )
+    error('CHEBFUN:jacpts:n', 'First input should be a positive number.');
+elseif ( n == 0 )   % Return empty vectors if n == 0:
+    x = []; 
+    w = []; 
+    v = []; 
+    return
+elseif ( n == 1 )
+    x0 = (b-a)/(a+b+2);
+    x = diff(interval)/2 * (x0+1) + interval(1); % map from [-1,1] to interval. 
+    w = 2^(a+b+1)*beta(a+1, b+1) * diff(interval)/2;
+    v = 1;
+    return
 end
 
 % Special cases:
@@ -800,8 +806,8 @@ f(idx) = A.*(1./ti.^2 - 1./(2*sin(ti/2)).^2);
 f = f - fcos;
 
 % Integrals for B1: (Note that N isn't large, so we don't need to be fancy).
-C = colloc2.cumsummat(N)*(.5*c);
-D = colloc2.diffmat(N)*(2/c);
+C = chebcolloc2.cumsummat(N)*(.5*c);
+D = chebcolloc2.diffmat(N)*(2/c);
 I = (C*A1p_t);
 J = (C*(f.*A1));
 
@@ -819,8 +825,8 @@ A2 = A2 - A2(1);
 
 if ( nargout < 3 )
     % Make function for output
-    tB1 = @(theta) chebtech.bary(theta,tB1,t,v);
-    A2 = @(theta) chebtech.bary(theta,A2,t,v);
+    tB1 = @(theta) bary(theta,tB1,t,v);
+    A2 = @(theta) bary(theta,A2,t,v);
     return
 end
 
@@ -847,10 +853,10 @@ A3 = A3 - A3(1);
 
 if ( nargout < 6 )
     % Make function for output
-    tB1 = @(theta) chebtech.bary(theta, tB1, t, v);
-    A2 = @(theta) chebtech.bary(theta, A2, t, v);
-    tB2 = @(theta) chebtech.bary(theta, tB2, t, v);
-    A3 = @(theta) chebtech.bary(theta, A3, t, v);
+    tB1 = @(theta) bary(theta, tB1, t, v);
+    A2 = @(theta) bary(theta, A2, t, v);
+    tB2 = @(theta) bary(theta, tB2, t, v);
+    A3 = @(theta) bary(theta, A3, t, v);
     return
 end
 
@@ -875,12 +881,12 @@ A4 = .5*(D*tB3) - (.5+alph)*B3 - .5*K;
 A4 = A4 - A4(1);
 
 % Make function for output:
-tB1 = @(theta) chebtech.bary(theta, tB1, t, v);
-A2 = @(theta) chebtech.bary(theta, A2, t, v);
-tB2 = @(theta) chebtech.bary(theta, tB2, t, v);
-A3 = @(theta) chebtech.bary(theta, A3, t, v);
-tB3 = @(theta) chebtech.bary(theta, tB3, t, v);
-A4 = @(theta) chebtech.bary(theta, A4, t, v);
+tB1 = @(theta) bary(theta, tB1, t, v);
+A2 = @(theta) bary(theta, A2, t, v);
+tB2 = @(theta) bary(theta, tB2, t, v);
+A3 = @(theta) bary(theta, A3, t, v);
+tB3 = @(theta) bary(theta, tB3, t, v);
+A4 = @(theta) bary(theta, A4, t, v);
 
 end
 

@@ -20,7 +20,7 @@ function varargout = subsref(f, index)
 % See also FEVAL, GET, RESTRICT, SUBSREF.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 idx = index(1).subs;
 switch index(1).type
@@ -32,6 +32,12 @@ switch index(1).type
         x = idx{1}; 
         if ( length(idx) == 2) 
             y = idx{2};
+        elseif ( isa(x, 'chebfun2v') ) 
+            % f(F), where f is a chebfun2 and F is a chebfun2v. 
+ 
+            out = feval(f, x); 
+            varargout = { out }; 
+            return
         elseif ( ( length(idx) == 1 ) && ( ~isreal(x) ) && ~isa(x, 'chebfun'))
             x = real( idx{1} );
             y = imag( idx{1} ); 
@@ -43,7 +49,7 @@ switch index(1).type
             varargout = { out }; 
             return
         else
-            error('CHEBFUN2:SUBSREF:INPUTS', ...
+            error('CHEBFUN:CHEBFUN2:subsref:inputs', ...
                 'Can only evaluate at functions (X,Y)')
         end
         
@@ -58,11 +64,12 @@ switch index(1).type
             out = feval(f, x, y) ;
         elseif ( isa(x,'chebfun') && isa(y,'chebfun') )
             if ( ~isreal(x) || ~isreal(y) ) 
-                error('CHEBFUN2:subsref:real','Both chebfuns must be real-valued.')
+                error('CHEBFUN:CHEBFUN2:subsref:real', ...
+                    'Both chebfuns must be real-valued.')
             end
             out = feval(f, x, y) ;
         else
-            error('CHEBFUN2:subsref:nonnumeric',...
+            error('CHEBFUN:CHEBFUN2:subsref:nonnumeric',...
               'Cannot evaluate chebfun2 for these inputs type.');
         end
     
@@ -83,13 +90,13 @@ switch index(1).type
         if ( length(idx) == 4 ) 
             out = restrict( f, [ idx{ : } ] );
         else
-            error('CHEBFUN:subsref:dimensions', ...
+            error('CHEBFUN:CHEBFUN2:subsref:dimensions', ...
                 'Index exceeds chebfun dimensions.')          
         end
         
     otherwise
         
-        error('CHEBFUN:subsref:unexpectedType',...
+        error('CHEBFUN:CHEBFUN2:subsref:unexpectedType',...
             ['??? Unexpected index.type of ', index(1).type]);
 end
 

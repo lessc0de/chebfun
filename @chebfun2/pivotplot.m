@@ -6,15 +6,16 @@ function varargout = pivotplot( f, varargin )
 %   H = PIVOTPLOT( F ) returns a handle H to the figure.
 %
 %   PIVOTPLOT( F, S ) allows further plotting options, such as linestyle,
-%   linecolor, etc. If S contains a string 'LOGLOG', the psuedo sig will be
+%   linecolor, etc. If S contains a string 'LOGLOG', the pseudo sig will be
 %   displayed on a log-log scale.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Empty check:
 if ( isempty( f ) ) 
-    error('CHEBFUN2:PIVOTPLOT', 'Empty chebfun2 has no pivots to plot');
+    error('CHEBFUN:CHEBFUN2:pivotplot:empty', ...
+        'Empty chebfun2 has no pivots to plot');
 end 
 
 % Parse input arguments:

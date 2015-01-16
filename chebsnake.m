@@ -95,14 +95,15 @@ while ( d ~= 0 ) % until quit
     
     % Ready, set, go!
     t = 1;                              % convex factor for nodes
-    go = plot(.7*scribble('ready?'), 'r', LW, lw);
+    go = chebsnakePlotChebfun(.7*scribble('ready?'), 'r', LW, lw);
+    shg; 
+    pause(0.3);
+    delete(go)
+    
+    go = chebsnakePlotChebfun(.4*scribble('go!'), 'r', LW, lw);
     shg; 
     pause(0.3); 
-    delete(go(~isnan(go)));
-    go = plot(.4*scribble('go!'), 'r', LW, lw);
-    shg; 
-    pause(0.3); 
-    delete(go(~isnan(go)));
+    delete(go)
     
     tic
     while ( d ~= 0 )                    % until game over or quit
@@ -125,18 +126,16 @@ while ( d ~= 0 ) % until quit
             yy = linspace(-1, 1, 5*length(y)).';
             xx = linspace(-1, 1, length(y)).';
             ww = fhweights(length(y)-1, fhd);
-            c = chebtech.bary(yy, y.', xx, ww);
+            c = bary(yy, y.', xx, ww);
         elseif ( nodes == 0 )
             yy = linspace(-1, 1, length(y)).';
             c = polyfit(yy, y, length(y) - 1, dom);
         end
         for k = 1:numel(hs1)
-            if ( ~isnan(hs1(k)) )
-                delete(hs1(k));
-            end
+            delete(hs1(k));
         end
 
-        hs1 = plot(c, 'b-', LW, lw);
+        hs1 = chebsnakePlotChebfun(c, 'b-', LW, lw);
         delete(hs2);
         hs2 = [plot(y(1:end-1), 'bo', MFC, 'b'), ...
                plot(y(end), 'bo', LW, lw, 'MarkerSize', 8)];
@@ -148,7 +147,7 @@ while ( d ~= 0 ) % until quit
         % check if the snake hits itself or the boundary
         if ( (max(abs([real(y(end)), imag(y(end))])) > 1) || ...
                 (min(abs(y(end)-y(1:end-1))) < res/2) )
-            ht = plot(.8*scribble('game over'), 'r', LW, lw);
+            ht = chebsnakePlotChebfun(.8*scribble('game over'), 'r', LW, lw);
             chebtune(dd, .5);
             shg
             pause(1)
@@ -172,10 +171,10 @@ while ( d ~= 0 ) % until quit
             if ( ~rem(pts, 30) )
                 chebtune(lv, 1);
                 fails = fails - 1;
-                up = plot(.8*scribble('1 up!'), 'r', LW, lw);
+                up = chebsnakePlotChebfun(.8*scribble('1 up!'), 'r', LW, lw);
                 shg
                 pause(1)
-                delete(up(~isnan(up)));
+                delete(up)
             end
             
             title(['Points : ' num2str(pts) '       Level : ' num2str(lvl) ...
@@ -196,14 +195,12 @@ while ( d ~= 0 ) % until quit
     end
     
     for k = 1:numel(ht)
-        if ( ~isnan(ht(k)) )
-            delete(ht(k));
-        end
+        delete(ht(k));
     end
     
 end
 
-plot(.8*scribble('goodbye'), 'r', LW, lw); 
+chebsnakePlotChebfun(.8*scribble('goodbye'), 'r', LW, lw); 
 chebtune(kld, 1);
 shg
 pause(1)
@@ -224,4 +221,13 @@ warning(W)
         end
     end
 
+end
+
+function h = chebsnakePlotChebfun(varargin)
+%CHEBSNAKEPLOT   Plot a CHEBFUN used in CHEBSNAKE.
+%   This function is just a wrapper for CHEBFUN PLOT which gets all the plot
+%   handles and assembles them into a numeric vector, making them easier to
+%   free later.
+    [hl, hp, hj, hd] = plot(varargin{:});
+    h = [hl ; hp ; hj ; hd];
 end

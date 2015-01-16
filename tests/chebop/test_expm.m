@@ -4,7 +4,7 @@ if ( nargin == 0 )
     pref = cheboppref();
 end
 
-tol = 1e-10;
+tol = pref.errTol;
 
 %%
 % Test against a V4 computation:
@@ -32,18 +32,35 @@ V4 = [   ...
     0.001142160800217
     0.000000000000000];
 
-err(1) = norm(V4 - feval(u{6}, chebpts(15)));
+pass(1) = norm(V4 - feval(u{6}, chebpts(15))) < tol;
 
 %%
-% Test backward compatability:
+% Test backward compatibility:
 A = chebop(@(u) diff(u, 2), [-1, 1], 0);
+warnState = warning('off', 'CHEBFUN:CHEBOP:expm:deprecated');
 E = expm(A, t);
+warning(warnState);
 u6 = E*u0;
 
-err(2) = norm(V4 - feval(u6, chebpts(15)));
+pass(2) = norm(V4 - feval(u6, chebpts(15))) < tol;
 
 %%
+% Test periodic boundary conditions.
+dom = [0 2*pi];
+A = chebop(@(u) diff(u, 2), dom);
+A.bc = 'periodic';
+u0 = chebfun(@(x) sin(x), dom); 
+t = [0 0.001 0.01 0.1 0.5 1];
 
-pass = err < tol;
+% Solve with FOURIER technology.
+u = expm(A, t, u0);
+pass(3) = isequal(get(u{1}.funs{1}, 'tech'), @trigtech);
+
+% Solve with CHEBYSHEV technology.
+v = expm(A, t, u0, pref);
+pass(4) = isequal(get(v{1}.funs{1}, 'tech'), @chebtech2);
+
+% Compare solutions at final time.
+pass(5) = norm(u{6} - v{6}, inf) < tol;
 
 end

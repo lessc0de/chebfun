@@ -20,7 +20,7 @@ elseif ( nargin == 2 )
     if ( strcmpi(flag, 'ends') )
         A = f(1).domain([1 end]);
     else
-        error('CHEBFUN:domain:unknown', 'Unexpected input.');
+        error('CHEBFUN:CHEBFUN:domain:unknown', 'Unexpected input.');
     end
     
 elseif ( numel(f) == 1 )
@@ -33,7 +33,7 @@ else
     for k = 1:numel(f)
         dom{k} = f(k).domain;
     end
-    A = chebfun.mergeDomains(dom{:});
+    A = domain.merge(dom{:});
 end
 
 end

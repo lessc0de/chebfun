@@ -1,11 +1,12 @@
 function F = volt(k, v, onevar)
-%VOLT   Volterra integral operator.
-%   V = VOLT(K,D) constructs a chebop representing the Volterra integral
-%   operator with kernel K for functions in domain D=[a,b]:
+%VOLT   Compute the Volterra integral with a specific kernel.
 %
-%      (V*v)(x) = int( K(x,y) v(y), y = a..x )
+%   F = VOLT(K, V) computes the Volterra integral with kernel K:
 %
-%   The kernel function K(x,y) should be smooth for best results.
+%      (F*v)(x) = int( K(x,y) v(y), y = a..x )
+%
+%   where a is the left endpoint on the interval V is defined on. The kernel
+%   function K(x,y) should be smooth for best results.
 %
 %   K must be defined as a function of two inputs X and Y. These may be scalar
 %   and vector, or they may be matrices defined by NDGRID to represent a tensor
@@ -16,13 +17,7 @@ function F = volt(k, v, onevar)
 %   defining the tensor product grid. This format allows a separable or sparse
 %   representation for increased efficiency in some cases.
 %
-% Example:
-%
-%   To solve u(x) + x*int(exp(x-y)*u(y), y=0..x) = f(x) on [0, 2]:
-%   V = chebop(@(x, u) u + x.*volt(@(x, y) exp(x-y), u), [0, 2]);
-%   u = V \ sin(exp(3*x));
-%
-% See also FRED, CHEBOP.
+% See also CHEBFUN/FRED, CHEBOP.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
@@ -55,7 +50,8 @@ function F = volt_col(k, v, onevar)
 
     normv = norm(v);
     dom = domain(v);
-    opt1 = {'resampling', false, 'splitting', true, 'blowup', 'off', 'scale', normv};
+    opt1 = {'resampling', false, 'splitting', true, 'blowup', 'off', ...
+        'vscale', normv};
 
     function out = int(x)
         if ( x == dom(1) )
@@ -67,7 +63,7 @@ function F = volt_col(k, v, onevar)
         end
     end
 
-    opt2 = {'blowup', 'off', 'vectorize', 'scale', normv, 'extrapolate', 1};
+    opt2 = {'blowup', 'off', 'vectorize', 'vscale', normv, 'extrapolate', 1};
     F = chebfun(@int, dom, opt2{:});
 
 end

@@ -6,7 +6,7 @@ function out = innerProduct(f, g)
 % See also SUM.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. 
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Deal with empty case:
 if ( isempty(f) || isempty(g) )
@@ -19,7 +19,19 @@ if ( ~isa(f, 'onefun') || ~isa(g, 'onefun') )
         'innerProduct() only operates on two ONEFUN objects.');
 end
 
-% Call SUM:
-out = sum(conj(f).*g);
+m = size(f, 2);
+n = size(g, 2);
+cf = conj(f);
+
+% Loop over columns of f and g:
+out = zeros(m, n);
+for j = 1:m
+    fj = extractColumns(cf, j);    % jth column of f.
+    for k = 1:n
+        gk = extractColumns(g, k); % kth column of g.
+        % Call SUM:
+        out(j,k) = sum(fj.*gk);
+    end
+end
 
 end

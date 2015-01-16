@@ -19,14 +19,15 @@ function varargout = subsref(f, index)
 %   F.PROP returns the property PROP of F as defined by GET(F, 'PROP').
 %
 % {}
-%   F{S1, S2} restricts F to the domain [S1, S2] < [F.ENDS(1), F.ENDS(end)]. See
-%   CHEBFUN/RESTRICT for further details. Note that F{[S1, S2]} is not supported
-%   due to the behaviour of the MATLAB subsref() command.
+%   F{S1, S2} restricts F to the domain [S1, S2] < [F.ENDS(1), F.ENDS(end)] and
+%   simplifies the result. See RESTRICT  and SIMPLIFY for further details. Note
+%   that F{[S1, S2]} is not supported due to the behaviour of the MATLAB
+%   subsref() command.
 %
-% See also FEVAL, COMPOSE, GET, RESTRICT.
+% See also FEVAL, COMPOSE, GET, RESTRICT, SIMPLIFY.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % TODO: Document for array-valued CHEBFUN objects and quasimatrices.
 
@@ -70,16 +71,19 @@ switch index(1).type
                     columnIndex = columnIndex.';
                 end
                 if ( size(columnIndex, 1) > 1 )
-                    error('CHEBFUN:subsref:colidx', ...
+                    error('CHEBFUN:CHEBFUN:subsref:colidx', ...
                         'Column index must be a vector of integers.')
-                end                
+                end               
+            elseif ( max(idx{2}) > columnIndex(end) )
+                error('CHEBFUN:CHEBFUN:subsref:badsubscript', ...
+                    'Index exceeds CHEBFUN dimensions.');
             end
 
         elseif ( length(idx) == 2 && strcmp(idx{2}, ':') )
             % This is OK.
             
         elseif ( length(idx) > 1 )
-            error('CHEBFUN:subsref:dimensions', ...
+            error('CHEBFUN:CHEBFUN:subsref:dimensions', ...
                 'Index exceeds CHEBFUN dimensions.')
             
         end
@@ -118,7 +122,7 @@ switch index(1).type
             end
             
         else
-            error('CHEBFUN:subsref:nonnumeric',...
+            error('CHEBFUN:CHEBFUN:subsref:nonnumeric',...
               'Cannot evaluate chebfun for non-numeric type.')
           
         end
@@ -152,23 +156,25 @@ switch index(1).type
                 % F{:} returns F:
                 out = f;
             else
-                error('CHEBFUN:subsref:baddomain', 'Invalid domain syntax.')
+                error('CHEBFUN:CHEBFUN:subsref:badDomain', ...
+                    'Invalid domain syntax.')
             end
             
         elseif ( size(idx, 1) == 1 )
             % F{s1,s2,...,sk} returns RESTRICT(F, [s1,s2,...,sk]):
             x = cat(2, idx{:});
             out = restrict(f, x);
+            out = simplify(out);
             
         else
-            error('CHEBFUN:subsref:dimensions', ...
+            error('CHEBFUN:CHEBFUN:subsref:dimensions', ...
                 'Index exceeds chebfun dimensions.')
             
         end
         
     otherwise
         
-        error('CHEBFUN:subsref:unexpectedType',...
+        error('CHEBFUN:CHEBFUN:subsref:unexpectedType',...
             ['??? Unexpected index.type of ', index(1).type]);
 end
 

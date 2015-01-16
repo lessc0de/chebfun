@@ -2,7 +2,7 @@ function varargout = quantumstates(varargin)
 %QUANTUMSTATES    Compute and plot Schroedinger eigenstates.
 %   This program computes and plots eigenvalues lambda and eigenfunctions u
 %   for the equation Lu = lambda*u, where L is the Schroedinger operator
-%   defined by Lu(x) = -h^2*u"(u) + V(x)*u(x).  Here h is a small parameter
+%   defined by Lu(x) = -h^2*u"(x) + V(x)*u(x).  Here h is a small parameter
 %   and the potential function V is given as a Chebfun. The domain of the
 %   problem is the domain of V, with boundary conditions u=0 at both ends.
 %
@@ -30,8 +30,6 @@ function varargout = quantumstates(varargin)
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 % Nick Trefethen, January 2012
-
-% TODO: This method requires a test.
 
 %% Parsing of inputs:
 noplot = strcmpi(varargin{nargin}, 'noplot');      % check for no plot
@@ -64,7 +62,7 @@ L.op = @(x,u) -h^2*diff(u,2) + V.*u;               % Schroedinger operator
 [U, D] = eigs(L, n, 'sr');                         % compute evals/efuns
 d = diag(D);                                       % vector of evals
 [d, ii] = sort(d);                                 % sort them
-U = extractColumns(U, ii);                    
+U = U(:,ii);                    
 
 %% Outputs:
 if ( nargout == 2 )
@@ -106,11 +104,10 @@ if ( ymax > Vxmax )                              %   at the endpoints,
 end                                              %   plot show this.
 dx = .05*(xmax - xmin); 
 dy = .25*ydiff/max(5, n);
-axis([xmin - dx, xmax + dx, ymin - dy, ymax]), drawnow
 
 % Plot the eigenfunction, lifted by the corresponding eigenvalue:
 W = dy*U;
-W = cheb2cell(W);
+W = num2cell(W);
 for j = 1:n
     umm = minandmax(W{j});
     if ( umm(2) < -umm(1) )
@@ -121,7 +118,7 @@ end
 W = horzcat(W{:});
 plot(W, LW, 1.5)
 
-% Plot V(x) again (so that black ends up on top0:
+% Plot V(x) again (so that black ends up on top):
 plot(V, 'k', LW, 2, 'jumpline', '-k')
 if ( ymax > Vxmin )
     plot(xmin*[1, 1], [ymax, Vxmin], 'k', LW, 2)
@@ -129,6 +126,9 @@ end
 if ( ymax > Vxmax )
     plot(xmax*[1, 1], [ymax Vxmax], 'k', LW, 2)    
 end
+
+% Set axis:
+axis([xmin - dx, xmax + dx, ymin - dy, ymax]), drawnow
 
 if ( ~holdState )
     % Stop holding:

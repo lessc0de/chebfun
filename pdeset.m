@@ -16,7 +16,7 @@ function varargout = pdeset(varargin)
 %           procedure is used.
 %
 %       Plot - Plot the solution at the end of every time chunk. [ {on} | off ]
-%           Turning this off can improve speed considerably.
+%              Turning this off can improve speed considerably.
 %
 %       HoldPlot - Hold the plots after each chunk. [ on | {off} ]
 %
@@ -28,7 +28,11 @@ function varargout = pdeset(varargin)
 %       PDEflag - Specify which entries correspond to time derivatives. 
 %           [ vector of logicals {true} ].
 %
-%   See also: odeset
+%       AdjustBCs - Adjust boundary conditions to be satisfied by initial
+%                   conditions.
+%           [ logical {true} ].
+%
+% See also ODESET.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information.
@@ -40,7 +44,8 @@ names = ['Eps      '
          'HoldPlot '
          'YLim     '
          'PlotStyle'
-         'PDEflag  ']; 
+         'PDEflag  '
+         'AdjustBCs']; 
      
 m = size(names, 1);
 shortNames = cell(m, 1);
@@ -62,6 +67,7 @@ if ( nargin == 0 )
         fprintf('            YLim: [ 2x1 vector | {NaN} ]\n')
         fprintf('       PlotStyle: [ string | ''-'']\n')
         fprintf('         PDEflag: [ vector of logicals {true} ]\n')
+        fprintf('       AdjustBCs: [ logical {true} ]\n')
     else
         % Get the ODE opts:
         opts = odeset();
@@ -119,7 +125,7 @@ for k = 1:2:length(pdeOpts)
             break
         end
         if ( j == m )
-            error('CHEBFUN:pdeset:UnknownOption', ...
+            error('CHEBFUN:pdeset:unknownOption', ...
                 ['Unrecognized property name ', pdeOpts{k}, '.'])
         end
     end

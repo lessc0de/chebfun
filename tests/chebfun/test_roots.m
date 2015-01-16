@@ -93,9 +93,7 @@ dom = [-2 7];
 
 pow = -0.5;
 op = @(x) (x-dom(1)).^pow.*cos(30*x);
-pref.singPrefs.exponents = [pow 0];
-pref.enableBreakpointDetection = 1;
-f = chebfun(op, dom, pref);
+f = chebfun(op, dom, 'exps', [pow 0], 'splitting', 'on');
 r = roots(f);
 r_exact = (((-19:66)+1/2)*pi/30).';
 err = r - r_exact;
@@ -118,8 +116,7 @@ pass(9) = norm(err, inf) < 1e1*epslevel(f)*vscale(f);
 
 % Blow-up function:
 op = @(x) x.^2.*(1-exp(-x.^2))-2;
-pref.singPrefs.exponents = [2 2];
-f = chebfun(op, dom, pref); 
+f = chebfun(op, dom, 'exps', [2 2]);
 r = roots(f);
 rExact = [-1.4962104914103104707 ; 1.4962104914103104707];
 err = r - rExact;
@@ -139,5 +136,39 @@ rExact = [0.33529141416564289113;
           1.7760894757659030239];
 err = r - rExact;
 pass(11) = norm(err, inf) < epslevel(f)*vscale(f);
-    
+
+%% Test sale invariance (#911)
+
+f = chebfun('exp(x)'); 
+r = roots(f-1);
+pass(12) = abs(r - eps) < 10*epslevel(f);
+f = chebfun('exp(1e-50*x)',[-1e50 1e50]);
+r = roots(f-1);
+pass(13) = abs(r - 1e50*eps) < 1e50*epslevel(f);
+f = chebfun('exp(1e50*x)',[-1e-50 1e-50]); 
+r = roots(f-1);
+pass(14) = abs(r - 1e-50*eps) < 1e-50*epslevel(f);
+
+%% Test roots with periodic option
+
+f = chebfun('cos(5*x).*exp(cos(x))',[-pi,pi],'periodic');
+r = roots(f);
+rExact = (-9:2:9)'*pi/10;
+err = r - rExact;
+pass(15) = norm(err, inf) < epslevel(f)*vscale(f);
+
+f = chebfun('1i+cos(5*x).*exp(cos(x))',[-pi,pi],'periodic');
+r = roots(f);
+pass(16) = isempty(r);
+
+% Check that we don't miss roots for unresolved functions.  (See GitHub issue
+% #1146.)
+warnState = warning('off', 'CHEBFUN:CHEBFUN:constructor:funNotResolved');
+p = pref;
+p.splitting = true;
+p.splitPrefs.splitMaxLength = 300;
+f = chebfun(@(x) sin(exp(2*(tanh(sin(10*x))))), [0 10], p);
+pass(17) = length(roots(f)) == 32;
+warning(warnState);
+
 end

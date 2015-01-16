@@ -6,7 +6,7 @@ function v = norm( F )
 %       V = sqrt(norm(F1).^2 + norm(F2).^2 + norm(F3).^2) .
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information. 
+% See http://www.chebfun.org/ for Chebfun information. 
 
 % Empty check: 
 if ( isempty( F ) ) 
@@ -17,7 +17,8 @@ end
 nF = F.nComponents; 
 v = 0; 
 for jj = 1:nF 
-    v = v + sum2( power( F.components{jj}, 2 ) );
+    v = v + sum( svd( F.components{jj} ).^2 );
+%     v = v + sum2( power( F.components{jj}, 2 ) );
 end
 v = sqrt(v); 
 

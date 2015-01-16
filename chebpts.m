@@ -1,4 +1,4 @@
-function [x, w, v] = chebpts(n, dom, type)
+function [x, w, v, t] = chebpts(n, dom, type)
 %CHEBPTS    Chebyshev points.
 %   CHEBPTS(N) returns N Chebyshev points of the 2nd-kind in [-1,1].
 %
@@ -16,16 +16,22 @@ function [x, w, v] = chebpts(n, dom, type)
 %   weights V corresponding to the Chebyshev points X. The weights are scaled to
 %   have infinity norm 1.
 %
-%   [X, W, V] = CHEBPTS(N, KIND) or CHEBPTS(N, D, KIND) returns Chebyshev points
-%   and weights of the 1st-kind if KIND = 1 and 2nd-kind if KIND = 2 (default).
+%   [X, W, V, T] = CHEBPTS(N) returns also the angles T so that cos(T) = X.
 %
-%   [1] Jarg Waldvogel, "Fast construction of the Fejer and Clenshaw-Curtis
-%   quadrature rules", BIT Numerical Mathematics, 46, (2006), pp 195-202. 
+%   [X, W, V, T] = CHEBPTS(N, KIND) or CHEBPTS(N, D, KIND) returns Chebyshev
+%   points, weights, and angles of the 1st-kind if KIND = 1 and 2nd-kind if KIND
+%   = 2 (default).
 %
-% See also LEGPTS, JACPTS, LAGPTS, and HERMPTS.
+% See also TRIGPTS, LEGPTS, JACPTS, LAGPTS, HERMPTS, LOBPTS, and RADAUPTS.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% [Mathematical reference]:
+%   Jarg Waldvogel, "Fast construction of the Fejer and Clenshaw-Curtis
+%   quadrature rules", BIT Numerical Mathematics, 46, (2006), pp 195-202.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Parse inputs:
 if ( nargin == 2 )
@@ -46,7 +52,7 @@ if ( length(n) == 1 && length(dom) > 1 )
     % Ignore interior breaks in this instance.
     dom = dom([1,end]); 
 elseif ( length(n) ~= length(dom) - 1 )
-    error('CHEBFUN:chebpts:NDmismatch', 'Vector N does not match domain D.'); 
+    error('CHEBFUN:chebpts:mismatchND', 'Vector N does not match domain D.'); 
 end
 
 % Create a dummy CHEBTECH of appropriate type to access static methods.
@@ -67,6 +73,15 @@ if ( length(n) == 1 ) % Single grid.
     end
     if ( nargout > 2 )
         v = f.barywts(n);
+        
+        % Rescale the barycentric weights for 1st-kind points so that 
+        % norm(v, inf) = 1:
+        if ( type == 1 )
+            v = v/norm(v, inf);
+        end
+    end
+    if ( nargout > 3 )
+        t = f.angles(n);
     end
     
 else                  % Piecewise grid.
@@ -91,6 +106,12 @@ else                  % Piecewise grid.
     x = cell2mat(x);
     w = cell2mat(w);
     v = cell2mat(v);
+    if ( nargout > 3 )
+        a = dom(1);
+        b = dom(end);
+        tmp = (x - a)/(b - a) - (b - x)/(b - a);
+        t = acos(tmp);
+    end
     
 end
 

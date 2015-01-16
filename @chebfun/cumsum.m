@@ -16,7 +16,7 @@ function f = cumsum(f, m, dim)
 % See also SUM, INTEGRAL.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % TODO: The input sequence is not the same as MATLAB. In particular, MATLAB only
 % supports m = 1.
@@ -36,13 +36,25 @@ if ( nargin < 3 )
 end
 
 if ( round(m) ~= m )
+<<<<<<< HEAD
     f = fracCumSum(f, m);
+=======
+    % Fractional integral:
+    % [TODO]: Implement this!
+    error('CHEBFUN:CHEBFUN:cumsum:notImplemented', ...
+        'Fractional antiderivatives not yet implemented.');
+    f = fracCalc(f, m);
+>>>>>>> development
     return
 end
 
 if ( ( dim == 1 && ~f(1).isTransposed ) || ( dim == 2 && f(1).isTransposed ) )
     % Continuous dimension:
     for k = 1:numel(f)
+        % Handle delta functions:
+        if ( isdelta(f(k)) )
+            f(k) = pruneDeltas(f(k));
+        end
         f(k) = cumsumContinousDim(f(k), m);
     end
 else
@@ -60,22 +72,29 @@ numFuns = numel(f.funs);
 
 transState = f(1).isTransposed;
 
+% If f is periodic, i.e. based on a periodic TECH check its mean:
+if ( isPeriodicTech(f) )
+    if ( abs(sum(f)) > 100*vscale(f)*epslevel(f) )
+    % Mean is not zero, convert it to a CHEBTECH based chebfun:
+    f = chebfun(f);
+    end
+end
+
 % Loop m times:
 for l = 1:m
 
     funs = {};
-    rVal = 0;
-    
+    rVal = 0;   
     % Main loop for looping over each piece and do the integration:
     for j = 1:numFuns
 
         % Call FUN/CUMSUM():        
-        [newFuns, rValNew] = cumsum(f.funs{j});
-        
+        newFuns = cumsum(f.funs{j});
+               
         if ( ~iscell( newFuns ) )
             newFuns = {newFuns};
         end
-        
+                        
         % Add the constant term that came from the left:
         for k = 1:numel(newFuns)
             newFuns{k} = newFuns{k} + rVal;
@@ -84,8 +103,9 @@ for l = 1:m
         % Store FUNs:
         funs = [funs, newFuns]; %#ok<AGROW>
         
+                    
         % Update the rval:
-        rVal = get(funs{end}, 'lval') + rValNew;
+        rVal = get(funs{end}, 'rval');
         
     end
     
@@ -116,4 +136,17 @@ else
     end
 end
 
+end
+
+function f = pruneDeltas(f)
+%PRUNEDELTAS   Transfers deltas at the right endpoint of funs to the next fun.
+%   F is assumed to be ba chebfun with a single column.
+
+% Go through each fun in pairs:
+nFuns = numel(f.funs);
+for k = 1:(nFuns-1);
+    if ( isdelta(f.funs{k}) )
+        [f.funs{k}, f.funs{k+1}] = transferDeltas(f.funs{k}, f.funs{k+1});
+    end
+end
 end

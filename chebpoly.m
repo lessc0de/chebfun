@@ -11,7 +11,7 @@ function f = chebpoly(n, d, kind)
 %   polynomials of the 1st kind, T_N(x)), when KIND = 1, and Chebyshev
 %   polynomials of the 2nd kind, U_N(x)), when KIND = 2.
 %
-% See also CHEBFUN/CHEBPOLY, LEGPOLY, and CHEBPTS.
+% See also LEGPOLY, FOURPOLY, and CHEBPTS.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. 
 % See http://www.chebfun.org/ for Chebfun information. 
@@ -55,13 +55,13 @@ end
 N = max(n)+1;
 c = zeros(N, numel(n));
 for k = 1:numel(n)
-    c(N-n(k), k) = 1;
+    c(n(k)+1, k) = 1;
 end
 
 % Construct a CHEBFUN from the coefficients:
 f = chebfun(c, d([1, end]), 'coeffs');
 
-% Introudce interior breakpoints:
+% Introduce interior breakpoints:
 if ( numel(d) > 2 )
     f = restrict(f, d);
 end

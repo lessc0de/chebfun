@@ -22,7 +22,7 @@ for n = 1:2
 
     %%
     % Check behvaior for non-subinterval inputs.
-    f = testclass.make(@(x) sin(x), [], [], pref);
+    f = testclass.make(@(x) sin(x), [], pref);
     g = restrict(f, [-1 1]);
     pass(n, 2) = isequal(f, g);
 
@@ -30,21 +30,24 @@ for n = 1:2
         g = restrict(f, [-1, 3]); %#ok<NASGU>
         pass(n, 3) = 0;
     catch ME
-        pass(n, 3) = strcmp(ME.identifier, 'CHEBTECH:restrict:badinterval');
+        pass(n, 3) = strcmp(ME.identifier, ...
+            'CHEBFUN:CHEBTECH:restrict:badInterval');
     end
 
     try
         g = restrict(f, [-2, 1]); %#ok<NASGU>
         pass(n, 4) = 0;
     catch ME
-        pass(n, 4) = strcmp(ME.identifier, 'CHEBTECH:restrict:badinterval');
+        pass(n, 4) = strcmp(ME.identifier, ...
+            'CHEBFUN:CHEBTECH:restrict:badInterval');
     end
 
     try
         g = restrict(f, [-1 -0.25 0.3 0.1 1]); %#ok<NASGU>
         pass(n, 5) = 0;
     catch ME
-        pass(n, 5) = strcmp(ME.identifier, 'CHEBTECH:restrict:badinterval');
+        pass(n, 5) = strcmp(ME.identifier, ...
+            'CHEBFUN:CHEBTECH:restrict:badInterval');
     end
 
     %%
@@ -60,28 +63,30 @@ for n = 1:2
 
     %%
     % Check multiple subinterval restriction.
-    f = testclass.make(@(x) sin(x) + sin(x.^2), [], [], pref);
+    f = testclass.make(@(x) sin(x) + sin(x.^2), [], pref);
     g = restrict(f, [-0.7 0.3 0.8]);
     h1 = restrict(f, [-0.7 0.3]);
     h2 = restrict(f, [0.3 0.8]);
     x = linspace(-1, 1, 100).';
-    err1 = feval(g{1} - h1, x);
-    err2 = feval(g{2} - h2, x);
-    pass(n, 10) = all(err1(:) == 0) && all(err2(:) == 0);
+    err1 = norm(feval(g{1} - h1, x), inf);
+    err2 = norm(feval(g{2} - h2, x), inf);
+    tol = 10*get(f, 'epslevel');
+    pass(n, 10) = err1 < tol && err2 < tol;
 
     %%
     % Check operation for array-valued functions.
     pass(n, 11) = test_spotcheck_restrict(testclass, ...
         @(x) [sin(x) cos(x) exp(x)], [-1 -0.7], pref);
 
-    f = testclass.make(@(x) [sin(x) cos(x)], [], [], pref);
+    f = testclass.make(@(x) [sin(x) cos(x)], [], pref);
     g = restrict(f, [-0.6 0.1 1]);
     h1 = restrict(f, [-0.6 0.1]);
     h2 = restrict(f, [0.1 1]);
     x = linspace(-1, 1, 100).';
-    err1 = feval(g{1} - h1, x);
-    err2 = feval(g{2} - h2, x);
-    pass(n, 12) = all(err1(:) == 0) && all(err2(:) == 0);
+    err1 = norm(feval(g{1} - h1, x), inf);
+    err2 = norm(feval(g{2} - h2, x), inf);
+    tol = 10*max(get(f, 'epslevel'));
+    pass(n, 10) = err1 < tol && err2 < tol;
 end
 
 end
@@ -89,7 +94,7 @@ end
 % Spot-check restriction of a given function to a given subinterval.
 function result = test_spotcheck_restrict(testclass, fun_op, subint, pref)
     % Perform restriction.
-    f = testclass.make(fun_op, [], [], pref);
+    f = testclass.make(fun_op, [], pref);
     g = restrict(f, subint);
 
     % Construct mapping from restricted subinterval to [-1, 1].

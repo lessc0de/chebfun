@@ -6,7 +6,7 @@ function f = times(f, g)
 % See also MTIMES.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Deal with the special cases:
 if ( ~isa(f, 'chebfun') )      % ??? * CHEBFUN
@@ -51,7 +51,7 @@ elseif ( isnumeric(g) )        % CHEBFUN * double
         numCols = numel(f);
         % Promote g if required:
         if ( ~isscalar(g) )
-            error('CHEBFUN:times:dim', 'Matrix dimensions must agree.');
+            error('CHEBFUN:CHEBFUN:times:dim', 'Matrix dimensions must agree.');
         end
         % Loop over the columns:
         for k = 1:numCols
@@ -63,7 +63,7 @@ elseif ( isnumeric(g) )        % CHEBFUN * double
 
 elseif ( ~isa(g, 'chebfun') )  % CHEBFUN * ???
 
-    error('CHEBFUN:times:unknown', ...
+    error('CHEBFUN:CHEBFUN:times:unknown', ...
           ['Undefined function ''times'' for input arguments of type ' ...
            '%s and %s.'], class(f), class(g));
 
@@ -71,13 +71,25 @@ else                           % CHEBFUN .* CHEBFUN
 
     % Check to see if one of the CHEBFUNs is transposed:
     if ( xor(f(1).isTransposed, g(1).isTransposed) )
-        error('CHEBFUN:times:matdim', ...
+        error('CHEBFUN:CHEBFUN:times:matdim', ...
             'Matrix dimensions must agree. (One input is transposed).');
     end
-
+    
+    if ( numColumns(f) ~= numColumns(g) )
+        error('CHEBFUN:CHEBFUN:times:matdim', 'Matrix dimensions must agree.');
+    end
+        
     if ( numel(f) == 1 && numel(g) == 1 )
-        % Array-valued CHEBFUN case:
+        % CHEBFUN case:
 
+        % If one of the two CHEBFUNs uses a PERIODICTECH reprensetation, 
+        % cast it to a NONPERIODICTECH.
+        if ( ~isPeriodicTech(f.funs{1}) && isPeriodicTech(g.funs{1}) )
+            g = chebfun(g, g.domain, 'tech', get(f.funs{1}, 'tech'));
+        elseif ( isPeriodicTech(f.funs{1}) && ~isPeriodicTech(g.funs{1}) )
+            f = chebfun(f, f.domain, 'tech', get(g.funs{1}, 'tech'));
+        end
+        
         % Overlap:
         [f, g] = overlap(f, g);
 
@@ -85,18 +97,16 @@ else                           % CHEBFUN .* CHEBFUN
         for k = 1:numel(f.funs)
             f.funs{k} = times(f.funs{k}, g.funs{k});
         end
-        f.pointValues = f.pointValues .* g.pointValues;        
+        f.pointValues = f.pointValues .* g.pointValues;
+        
     else
         % QUASIMATRIX case:
-        if ( numColumns(f) ~= numColumns(g) )
-            error('CHEBFUN:times:matdim', 'Matrix dimensions must agree.');
-        else
-            % Loop over the columns:
-            f = cheb2quasi(f);
-            g = cheb2quasi(g);
-            for k = 1:numel(f)
-                f(k) = f(k).*g(k);
-            end
+
+        % Loop over the columns:
+        f = cheb2quasi(f);
+        g = cheb2quasi(g);
+        for k = 1:numel(f)
+            f(k) = f(k).*g(k);
         end
 
     end

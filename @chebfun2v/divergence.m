@@ -2,9 +2,11 @@ function f = divergence( F )
 %DIVERGENCE   Divergence of a CHEBFUN2V.
 %   DIVERGENCE(F) returns the divergence of the CHEBFUN2V i.e.,
 %       divergence(F) = F_x + F_y.
+%
+% See also DIV.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
-% See http://www.maths.ox.ac.uk/chebfun/ for Chebfun information. 
+% See http://www.chebfun.org/ for Chebfun information. 
 
 % Note that divergence of a 3-vector is the same, because the functions are
 % of two variables.

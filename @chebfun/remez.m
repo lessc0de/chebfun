@@ -1,10 +1,10 @@
 function varargout = remez(f, varargin)
-%REMEZ   Best polynomial or rational approximation.
+%REMEZ   Best polynomial or rational approximation for real valued chebfuns.
 %   P = REMEZ(F, M) computes the best polynomial approximation of degree M to
-%   the CHEBFUN F in the infinity norm using the Remez algorithm.
+%   the real CHEBFUN F in the infinity norm using the Remez algorithm.
 %
 %   [P, Q] = REMEZ(F, M, N) computes the best rational approximation P/Q of type
-%   (M, N) to the CHEBFUN F using the Remez algorithm.
+%   (M, N) to the real CHEBFUN F using the Remez algorithm.
 %
 %   [P, Q, R_HANDLE] = REMEZ(F, M, N) does the same but additionally returns a
 %   function handle R_HANDLE for evaluating the rational function P/Q.
@@ -48,14 +48,22 @@ function varargout = remez(f, varargin)
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
 
-% TODO:  Raise error on CHEBFUNs with singular FUNs.
-
 dom = f.domain([1, end]);
 normf = norm(f);
 
+if ( ~isreal(f) )
+    error('CHEBFUN:CHEBFUN:remez:real', ...
+        'REMEZ only supports real valued functions.');
+end
+
 if ( numColumns(f) > 1 )
-    error ('CHEBFUN:remez:quasi', ...
+    error('CHEBFUN:CHEBFUN:remez:quasi', ...
         'REMEZ does not currently support quasimatrices.');
+end
+
+if ( issing(f) )
+    error('CHEBFUN:CHEBFUN:remez:singularFunction', ...
+        'REMEZ does not currently support functions with singularities.');
 end
 
 % Parse the inputs.
@@ -145,7 +153,7 @@ delta = deltamin;
 
 % Warn the user if we failed to converge.
 if ( delta/normf > opts.tol )
-    warning('CHEBFUN:remez:convergence', ...
+    warning('CHEBFUN:CHEBFUN:remez:convergence', ...
         ['Remez algorithm did not converge after ', num2str(iter), ...
          ' iterations to the tolerance ', num2str(opts.tol), '.']);
 end
@@ -201,7 +209,7 @@ for k = 1:2:length(varargin)
     elseif ( strcmpi('plotfcns', varargin{k}) )
         opts.plotIter = true;
     else
-        error('CHEBFUN:remez:badInput', ...
+        error('CHEBFUN:CHEBFUN:remez:badInput', ...
             'Unrecognized sequence of input parameters.')
     end
 end
@@ -226,7 +234,7 @@ if ( (numel(f.funs) > 1) || (length(f) > 128) )
 end
 
 % Compute the Chebyshev coefficients.
-c = chebpoly(f, length(f));
+c = chebcoeffs(f, length(f));
 c(end) = 2*c(end);
 
 % Check for symmetries and reduce degrees accordingly.
@@ -287,7 +295,7 @@ h = (w'*fk) / (w'*sigma);                          % Levelled reference error.
 pk = (fk - h*sigma);                               % Vals. of r*q in reference.
 
 % Trial polynomial.
-p = chebfun(@(x) chebtech.bary(x, pk, xk, w), dom, m + 1);
+p = chebfun(@(x) bary(x, pk, xk, w), dom, m + 1);
 
 end
 
@@ -312,7 +320,8 @@ qk_all = C(:,1:n+1)*v;
 pos =  find(abs(sum(sign(qk_all))) == N + 2);  % Sign changes of each qk.
 
 if ( isempty(pos) || (length(pos) > 1) )
-    error('CHEBFUN:remez:badGuess', 'Trial interpolant too far from optimal');
+    error('CHEBFUN:CHEBFUN:remez:badGuess', ...
+        'Trial interpolant too far from optimal');
 end
 
 qk = qk_all(:,pos);       % Keep qk with unchanged sign.
@@ -320,8 +329,8 @@ h = d(pos, pos);          % Levelled reference error.
 pk = (fk - h*sigma).*qk;  % Vals. of r*q in reference.
 
 % Trial numerator and denominator.
-p = chebfun(@(x) chebtech.bary(x, pk, xk, w), dom, m + 1);
-q = chebfun(@(x) chebtech.bary(x, qk, xk, w), dom, n + 1);
+p = chebfun(@(x) bary(x, pk, xk, w), dom, m + 1);
+q = chebfun(@(x) bary(x, qk, xk, w), dom, n + 1);
 
 end
 
@@ -348,7 +357,8 @@ function [xk, norme, err_handle, flag] = exchange(xk, h, method, f, p, q, Npts)
 
 % Compute extrema of the error.
 e_num = (q.^2).*diff(f) - q.*diff(p) + p.*diff(q);
-rr = [f.domain(1) ; roots(e_num); f.domain(end)];
+rts = roots(e_num, 'nobreaks');
+rr = [f.domain(1) ; rts; f.domain(end)];
 
 % Function handle output for evaluating the error.
 err_handle = @(x) feval(f, x) - feval(p, x)./feval(q, x);

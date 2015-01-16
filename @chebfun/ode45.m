@@ -9,6 +9,8 @@ function varargout = ode45(varargin)
 %   One can also write [T, Y] = ODE45(...), in which case T is a linear CHEBFUN
 %   on the domain D.
 %
+%   Note that CHEBFUN/ODE45() uses a default RELTOL of 1e-6.
+%
 % Example:
 %   y = chebfun.ode45(@vdp1, [0, 20], [2 ; 0]); % Solve Van der Pol problem
 %   roots(y(:, 1) - 1);                         % Find when y = 1
@@ -22,7 +24,7 @@ function varargout = ode45(varargin)
 sol = ode45(varargin{:});
 
 % Convert solution to a CHEBFUN:
-[t, y] = chebfun.odesol(sol); 
+[t, y] = chebfun.odesol(sol, varargin{2}); 
 
 % Output in a consistent way with the built in routine:
 if ( nargout == 1 )

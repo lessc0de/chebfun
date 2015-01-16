@@ -25,8 +25,6 @@ function [p, q, r_handle] = chebpade(F, m, n, varargin)
 
 % TODO:  Handle quasimatrices/array-valued CHEBFUNs.
 
-% TODO:  Raise error on CHEBFUNs with singular FUNs.
-
 % TODO:  References?
 
 % Parse the inputs.
@@ -48,7 +46,7 @@ elseif ( nargin == 4 ) % CHEBPADE(F, M, N, TYPE) or CHEPADE(F, M, N, K)
         M = -1;
         type = varargin{1};
         if ( ~(strcmpi(type,'clenshawlord') || strcmpi(type,'maehly')) )
-            error('CHEBFUN:chebpade:inputParameters', ...
+            error('CHEBFUN:CHEBFUN:chebpade:inputParameters', ...
                 'Unrecognized sequence of input parameters.')
         end
     end
@@ -60,11 +58,16 @@ elseif ( nargin == 5 ) % CHEBPADE(F, M, N, TYPE, K) or CHEPADE(F, M, N, K, TYPE)
         M = varargin{2};
         type = varargin{1};
     else
-        error('CHEBFUN:chebpade:inputParameters', ...
+        error('CHEBFUN:CHEBFUN:chebpade:inputParameters', ...
             'Unrecognized sequence of input parameters.')
     end
 else
-    error('CHEBFUN:chebpade:tooManyArgs', 'Too many arguments.')
+    error('CHEBFUN:CHEBFUN:chebpade:tooManyArgs', 'Too many arguments.')
+end
+
+if ( issing(F) )
+    error('CHEBFUN:chebpade:singularFunction', ...
+        'CHEBPADE does not currently support functions with singularities.');
 end
 
 % Compute the Chebyshev-Pade approximation of choice.
@@ -73,7 +76,7 @@ if ( strcmp(type,'clenshawlord') )
 elseif ( strcmp(type,'maehly') )
     [p, q, r_handle] = chebpadeMaehly(F, m, n);
 else
-    error('CHEBFUN:chebpade:type', ...
+    error('CHEBFUN:CHEBFUN:chebpade:type', ...
         'Approximation type must be either ''clenshawlord'' or ''maehly''.');
 end
 
@@ -97,13 +100,13 @@ l = max(m, n);
 if ( M >= 0 )
     F = chebfun(@(x) feval(F, x), F.ends([1 end]), M + 1);
 elseif ( numel(F.funs) > 1 )
-    error('CHEBFUN:chebpade:multipleFuns', ...
+    error('CHEBFUN:CHEBFUN:chebpade:chebpadeClenshawLord:multipleFuns', ...
         ['For a function with multiple funs, the number of coefficients ' ...
          'to be considered should be specified.']);
 end
 
 % Get the Chebyshev coefficients and pad if necessary.
-c = fliplr(chebpoly(F, length(F))).';
+c = chebcoeffs(F, length(F));
 if ( length(F) < m + 2*n + 1 )
     %c = [c ; zeros(m + 2*n+1 - length(F), 1)];
 
@@ -153,8 +156,8 @@ qk = 2*qk/qk(1);
 qk(1) = 1;
 
 % Form the outputs.
-p = chebfun(flipud(pk), F.domain([1 end]), 'coeffs');
-q = chebfun(flipud(qk), F.domain([1 end]), 'coeffs');
+p = chebfun(pk, F.domain([1 end]), 'coeffs');
+q = chebfun(qk, F.domain([1 end]), 'coeffs');
 r_handle = @(x) feval(p, x)./feval(q, x);
 
 end
@@ -168,13 +171,12 @@ function [p, q, r_handle] = chebpadeMaehly(F, m, n)
 tol = 1e-10;
 
 % Get the Chebyshev coefficients and pad if necessary.
-a = chebpoly(F, length(F)).';
-a = a(end:-1:1);
+a = chebcoeffs(F, length(F));
 if ( length(F) < m + 2*n + 1 )
     %a = [a ; zeros(m + 2*n + 1 - length(F), 1)];
 
     % Using random values appears to be more stable than using zeros?
-    warning('CHEBFUN:chebpade:notEnoughCoeffs', ...
+    warning('CHEBFUN:CHEBFUN:chebpade:chebpadeMaehly:notEnoughCoeffs', ...
         ['Not enough coefficients given for type [' int2str(m) '/' ...
          int2str(n) '] approximation.  Assuming remainder are noise.']);
     a = [a ; eps*randn(m + 2*n + 1 - length(F), 1)];
@@ -195,16 +197,16 @@ if ( rank(D, tol) < min(size(D)) )
     % If system matrix is singular, reduce degrees first and try again.
     if ( m > 1 )
         [p, q, r_handle] = chebpade(F, m - 1, n, 'maehly');
-        warning('CHEBFUN:chebpade:singularGoingLeft', ...
+        warning('CHEBFUN:CHEBFUN:chebpade:chebpadeMaehly:singularGoingLeft', ...
             ['Singular matrix encountered. Computing [' int2str(m - 1) ...
              '/' int2str(n) '] approximant.'])
     elseif ( n > 1 )
         [p, q, r_handle] = chebpade(F, m, n - 1, 'maehly');
-        warning('CHEBFUN:chebpade:singularGoingUp', ...
+        warning('CHEBFUN:CHEBFUN:chebpade:chebpadeMaehly:singularGoingUp', ...
             ['Singular matrix encountered. Computing [' int2str(m) ...
              '/' int2str(n - 1) '] approximant.'])
     else
-        error('CHEBFUN:chebpade:singularFail', ...
+        error('CHEBFUN:CHEBFUN:chebpade:chepadeMaehly:singularFail', ...
             ['Singular matrix encountered.  Cannot compute [1/1] ' ...
             'approximation.']);
     end
@@ -234,8 +236,8 @@ else
 end
 
 % Form the outputs.
-p = chebfun(flipud(pk), F.domain([1 end]), 'coeffs');
-q = chebfun(flipud(qk), F.domain([1 end]), 'coeffs');
+p = chebfun(pk, F.domain([1 end]), 'coeffs');
+q = chebfun(qk, F.domain([1 end]), 'coeffs');
 r_handle = @(x) feval(p, x)./feval(q, x);
 
 end

@@ -12,7 +12,7 @@ function out = poly(f)
 %   This strange behaviour is a result of MATLAB's decision to return a row
 %   vector from the POLY command, even for column vector input.
 %
-% See also CHEBPOLY, LEFGPOLY.
+% See also CHEBCOEFFS, FOURCOEFFS, LEGCOEFFS.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org/ for Chebfun information.
@@ -28,7 +28,8 @@ if ( isempty(f) )
     return
 end
 
-coeffs = f.coeffs;
+% Flip the Chebyshev coefficients to match Matlab ordering:
+coeffs = flipud(f.coeffs);
 [n, m] = size(coeffs);
 
 % Coefficients on the unit interval:
@@ -70,4 +71,6 @@ else
         tnold1 = tn;
     end
     
+end
+
 end

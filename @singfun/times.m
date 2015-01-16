@@ -19,7 +19,8 @@ end
 % Check if inputs are other than SINGFUNS, SMOOTHFUNS or doubles:
 if ( (~isa(f, 'singfun') && ~isa(f, 'smoothfun') && ~isa(f, 'double')) || ...
      (~isa(g, 'singfun') && ~isa(g, 'smoothfun') && ~isa(g, 'double')) )
-    error('SINGFUN:times:Input can only be a singfun, a smoothfun or a double')
+    error('CHEBFUN:SINGFUN:times:input', ...
+        'Input can only be a singfun, a smoothfun or a double')
 end
 
 % Multiplication by a scalar or a SMOOTHFUN:
@@ -44,6 +45,8 @@ if ( isa(f, 'singfun') && isa(g, 'singfun') )
     % Add the exponents:
     h.exponents = f.exponents + g.exponents;
 end
+
+h = cancelExponents(h);
 
 %% Simplify and replace the boundary roots:
 h = simplify(h);

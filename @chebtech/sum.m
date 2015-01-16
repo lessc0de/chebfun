@@ -11,7 +11,7 @@ function out = sum(f, dim)
 % See also CUMSUM, DIFF.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers. 
-% See http://www.chebfun.org for Chebfun information.
+% See http://www.chebfun.org/ for Chebfun information.
 
 % Get the length of the values:
 n = size(f.coeffs, 1);
@@ -42,7 +42,7 @@ end
 % Evaluate the integral by using the Chebyshev coefficients (see Thm. 19.2 of
 % Trefethen, Approximation Theory and Approximation Practice, SIAM, 2013, which
 % states that \int_{-1}^1 T_k(x) dx = 2/(1-k^2) for k even):
-c = f.coeffs(end:-1:1,:); 
+c = f.coeffs; 
 c(2:2:end,:) = 0;
 out = [ 2, 0, 2./(1-(2:n-1).^2) ] * c;
 

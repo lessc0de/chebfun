@@ -91,30 +91,34 @@ try
     h = f./0;
     pass(13) = false;
 catch ME
-    pass(13) = strcmp(ME.identifier, 'CHEBFUN:rdivide:DivisionByZero');
+    pass(13) = strcmp(ME.identifier, ...
+        'CHEBFUN:CHEBFUN:rdivide:columnRdivide:divisionByZero');
 end
 
 try
     h = chebfun(@(x) 1+0*x)./chebfun(@(x) 0*x);
     pass(13) = false;
 catch ME
-    pass(13) = strcmp(ME.identifier, 'CHEBFUN:rdivide:DivisionByZeroChebfun');
+    pass(13) = strcmp(ME.identifier, ...
+        'CHEBFUN:CHEBFUN:rdivide:columnRdivide:divisionByZeroChebfun');
 end
 
 try
     f./gt;
-    pass(10) = false;
+    pass(14) = false;
 catch ME
-    pass(10) = strcmp(ME.identifier, 'CHEBFUN:rdivide:dim');
+    pass(14) = strcmp(ME.identifier, ...
+        'CHEBFUN:CHEBFUN:rdivide:columnRdivide:dim');
 end
 
 try
     f = chebfun(@(x) exp(x), [-1 1]);
     g = chebfun(@(x) exp(x), [0 2]);
     h = f./g;
-    pass(11) = false;
+    pass(15) = false;
 catch ME
-    pass(11) = strcmp(ME.identifier, 'CHEBFUN:rdivide:domain');
+    pass(15) = strcmp(ME.identifier, ...
+        'CHEBFUN:CHEBFUN:rdivide:columnRdivide:domain');
 end
 
 %% Test on singular function: piecewise smooth chebfun - splitting on.
@@ -128,18 +132,14 @@ pow1 = -0.5;
 pow2 = -0.3;
 op1 = @(x) (x - dom(2)).^pow1.*sin(100*x);
 op2 = @(x) (x - dom(2)).^pow2.*(cos(300*x).^2+1);
-pref.singPrefs.exponents = [0 pow1];
-pref.enableBreakpointDetection = 1;
-f = chebfun(op1, dom, pref);
-pref.singPrefs.exponents = [0 pow2];
-pref.enableBreakpointDetection = 1;
-g = chebfun(op2, dom, pref);
+f = chebfun(op1, dom, 'exps', [0 pow1], 'splitting', 'on');
+g = chebfun(op2, dom, 'exps', [0 pow2], 'splitting', 'on');
 h = f./g;
 vals_h = feval(h, x);
 pow = pow1-pow2;
 op = @(x) (x - dom(2)).^pow.*(sin(100*x)./(cos(300*x).^2+1));
 h_exact = op(x);
-pass(12) = ( norm(vals_h-h_exact, inf) < 1e1*max(get(f, 'epslevel'), ...
+pass(16) = ( norm(vals_h-h_exact, inf) < 1e1*max(get(f, 'epslevel'), ...
     get(g, 'epslevel'))*norm(h_exact, inf) );
 
 %% Test for function defined on unbounded domain:
@@ -162,6 +162,43 @@ h = f./g;
 hVals = feval(h, x);
 hExact = oph(x);
 err = hVals - hExact;
-pass(13) = norm(err, inf) < 1e1*get(f,'epslevel')*get(f,'vscale');
+pass(17) = norm(err, inf) < 1e1*get(f,'epslevel')*get(f,'vscale');
+
+
+%%
+% Test that rdivide works correctly when the two triguns involved have 
+% widely different vscales.
+k = 10;
+z = chebfun('4*exp(1i*s)',[0 2*pi],'trig');
+f = z./((exp(z)-1));
+B10 = factorial(k)*sum((f./z.^(k+1)).*diff(z))/(2i*pi);  % 10 Bernoulli num
+exact = 5/66;
+pass(18) = abs(exact-B10) < get(f,'epslevel')*get(f,'vscale');
+
+%% Test division between a CHEBFUN and a TRIGFUN.
+
+dom = [0 pi 2*pi];
+
+% 1. One column case.
+f = chebfun(@(x) x + x.^2, dom, pref);
+g = chebfun(@(x) 2+cos(x), [dom(1) dom(end)], 'periodic');
+h1 = f./g;
+% We want the result to use the same tech as the one used by f.
+pass(19) = strcmpi(func2str(get(h1.funs{1}.onefun, 'tech')), ...
+                   func2str(get(f.funs{1}.onefun, 'tech')));
+h2 = chebfun(@(x) (x + x.^2)./(2+cos(x)), dom, pref);
+pass(20) = norm(h1-h2, inf) < get(h2,'epslevel').*get(h2,'vscale');
+
+% 2. Quasimatrix case.
+f = chebfun(@(x) [cos(x), sin(x)], [dom(1) dom(end)], 'periodic');
+g = chebfun(@(x) [2+x, 2+x.^3], dom, pref);
+h1 = f./g;
+% We want the result to use the same tech as the one used by g.
+pass(21) = strcmpi(func2str(get(h1(:,1).funs{1}.onefun, 'tech')), ...
+                   func2str(get(g(:,1).funs{1}.onefun, 'tech')));
+pass(22) = strcmpi(func2str(get(h1(:,2).funs{1}.onefun, 'tech')), ...
+                   func2str(get(g(:,2).funs{1}.onefun, 'tech')));
+h2 = chebfun(@(x) [cos(x)./(2+x), sin(x)./(2+x.^3)], dom, pref);
+pass(23) = norm(h1-h2, inf) < get(h2,'epslevel').*get(h2,'vscale');
 
 end
