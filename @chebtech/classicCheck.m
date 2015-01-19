@@ -61,8 +61,6 @@ else
     epslevel = pref.eps;
 end
 
-epslevel = 1e-8;
-
 % Convert scalar epslevel/tolerance inputs into vectors.
 if ( isscalar(epslevel) )
     epslevel = repmat(epslevel, size(f.vscale));

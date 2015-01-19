@@ -22,23 +22,76 @@ end
 % The fractional part:
 alph = m - floor(m);
 
+
+% Constant scaling:
+scl = 1/gamma(alph);
+
 % Grab some fields from f:
 funs = f.funs;
 numFuns = numel(funs);
 dom = f.domain;
 
-% Loop over each FUN by calling FRACCumSum@BNDFUN:
+% For constructing the global contribution:
+const = zeros(1, numFuns);
+K = @(t, tau) (t-tau).^(alph-1);
+data.exponents = [1-alph, 0];
+
+% This shouldn't be needed, but I can't make the global contribution happy with
+% out it. Very annyoing. NH 01/2015.
+p = chebfunpref;
+p.fixedLength = 65;
+
+% Loop over each FUN by calling BNDFUN/FRACCUMSUM:
 for k = 1:numFuns
-    f.funs{k} = fracCumSum(f.funs{k}, alph, dom([1,end]));
+    
+    % Global contribution:
+    I = 0;
+    for j = 1:k-1 % Loop over all intervals before the current one:
+        
+        % Function which comuputes the fractional integral for a given t:
+        op = @(t) scl*innerProduct(KFun(K, t, alph, dom(j:j+1)), funs{j}); 
+        % Construct a bndfun for this in t.        
+        data.domain = dom(k:k+1);            
+        const(j) = vec(op, dom(k));  % Subtract const term so that Ij is of the 
+        opj = @(t) op(t) - const(j); % form (1-x)^(1-alph)*<smooth>.
+        Ij = bndfun(@(t) vec(opj, t), data, p);
+        I = I + Ij;
+    end
+    
+    % Local contribution:
+    J = fracCumSum(funs{k}, alph);
+    
+    % Sum global and local contributions:
+    %  (TODO: Except for the first piece -- in which case I = 0 -- (I + J) 
+    %   *should* simplify to have zero exponents but often doesn't. Grrr.)
+    warnState = warning('off', 'CHEBFUN:SINGFUN:plus:exponentDiff');
+    f.funs{k} = (I + J) + sum(const); % Replace the constant terms.
+    warning(warnState);
+
 end
 
 % Simplify:
 f = simplify(f);
 
-% Grab new function values at the breakpoints:
-pointValues = chebfun.getValuesAtBreakpoints(f.funs);
-
 % Update the function value at the breakpoints:
-f.pointValues = pointValues;
+f.pointValues = chebfun.getValuesAtBreakpoints(f.funs);
 
+end
+
+function y = KFun(K, t, alph, dom)
+%KFUN  Construct a BNDFUN of the kernel for a given t, alph and domain.
+    data.domain = dom;
+    data.exponents = [0 0];
+    if ( t == dom(2) )
+        data.exponents = [0, alph-1];
+    end
+    y = bndfun(@(tau) K(t, tau), data);
+end
+
+function y = vec(op, t)
+%VEC  Vectorize a given function handle.
+    y = zeros(size(t));
+    for l = 1:numel(t)
+        y(l,:) = op(t(l));
+    end
 end

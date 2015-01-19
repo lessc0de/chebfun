@@ -81,6 +81,8 @@ classdef smoothfun < onefun % (Abstract)
             
         end
         
+        f = fracCumSum(f, map, alph)
+        
     end
     
 end

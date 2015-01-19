@@ -1,37 +1,27 @@
-function f = fracCumSum(f, map, alph)
-%FRACCUMSUM   Fractional indefinite integral of a ONEFUN.
-%  FRACCSUMSUM(ONEFUNS, MAPS, FRACM) returns the fractional indefinite integral
-%  of order FRACM defined by the ONEFUNs stored in the cell ONEFUNS and their 
-%  corresponding map structure which maps between the real domain and [-1 1]. 
-%  Note that FRACM needs to be non-integer (fractional).
+function f = fracCumSum(f, alph)
+%FRACCUMSUM   Fractional indefinite integral of a SINGFUN.
+%  FRACCSUMSUM(ONEFUNS, ALPH) returns the fractional indefinite integral of
+%  order ALPH for scalar ALPH in (0, 1).
 %
 % See also CUMSUM, DIFF.
 
 % Copyright 2014 by The University of Oxford and The Chebfun Developers.
 % See http://www.chebfun.org for Chebfun information.
 
-% Grab the exponent of the last piece:
-exps = f.exponents;
-
-% Exponents for the result:
-newExps = exps;
-
+% Exponents:
+oldExps = f.exponents;
+newExps = oldExps;
 newExps(1) = newExps(1) + alph;
 
 % Call the SINGFUN constructor to construct the Riemann–Liouville fractional 
 % integral:
-
 data.exponents = newExps;
-f = (1/gamma(alph))*singfun(@(x) op(f, map, x, alph), data);
+f = (1/gamma(alph))*singfun(@(x) op(f, x, alph), data);
 
 end
 
 %% The operator of the Riemann–Liouville fractional integral:
-function y = op(g, map, x, alph)
-
-% Get the smooth part and the exponents of the last piece:
-exps = g.exponents;
-sp = g.smoothPart;
+function y = op(g, x, alph)
 
 % Preallocation and vectorization:
 sx = size(x);
@@ -39,47 +29,34 @@ x = x(:);
 lx = length(x);
 y = zeros(lx, 1);
 
-warnState = warning('off', 'MATLAB:integral:MinStepSize');
-
 % Loop over each sample point:
 for k = 1:lx
-    t = x(k);
     
-    
-
-
-%     t = map.Inv(map.For(x(k)))
-%     data.exponents = [0 0];
-%     kernel = singfun(@(s) (t-s).^(alph-1), data);
-% 
-%     I = sum(kernel.*g);
-    
-    if ( x(k) == -1 || x(k) == 0 )
+    if ( x(k) == -1 )
         % When sampled at -1, namely the left endpoint of the entire CHEBFUN or 
         % the left edge of a piece, set the value of the fractional integral 
         % at -1 as NaN and this value will be extrapolated during construction:
         y(k) = NaN;
-    else
+        continue
+    end
 
-        y(k) = integral(@(tau) (t-tau).^(alph-1).*feval(g, tau), -1, t, ...
-        'abstol', eps, 'reltol', eps);
-        
-%     elseif ( x(k) == 1 )
-%         % Call SINGFUN constructor:
-%         data.exponents = [exps(1) exps(2)+alph-1];
-%         h = singfun(sp, data);
-%         y(k) = I + sum(h);
-%     else
-%         % Call SINGFUN constructor:
-%         rsp = restrict(sp, [-1 x(k)]);
-%         data.exponents = [exps(1) alph-1];
-%         h = singfun(rsp, data);
-%         y(k) = I + ((x(k)+1)/2)^(alph + exps(1))*sum(h);
+    % Kernel mapped to [-1 1]:
+    data.exponents = [0, alph-1];
+    scl = (.5*(x(k)+1)).^alph;
+    kernel = scl*singfun(@(s) (1-s).^(alph-1), data);
+    
+    if ( x(k) == 1 )
+        % At x(k) = 1 (i.e., rightmost pt) we do not need to restrict.
+        gk = g;
+    else
+        % Restrict g to [-1, x(k)]:
+        gk = restrict(g, [-1, x(k)]);
     end
     
+    % Integrate with innerProduct():
+    y(k) = innerProduct(kernel, gk);
+    
 end
-
-warning(warnState);
 
 % Reshape the result:
 y = reshape(y, sx);

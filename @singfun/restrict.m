@@ -21,6 +21,7 @@ if ( (s(1) < -1) || (s(end) > 1) || (any(diff(s) <= 0)) )
     error('CHEBFUN:SINGFUN:restrict:badInterval', 'Not a valid interval.')
 elseif ( (numel(s) == 2) && all(s == [-1, 1]) )
     % Nothing to do here!
+    g = f;
     return
 end
 
