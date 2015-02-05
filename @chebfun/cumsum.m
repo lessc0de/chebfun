@@ -95,10 +95,12 @@ for l = 1:m
 
         % Store FUNs:
         funs = [funs, newFuns]; %#ok<AGROW>
-        
-                    
+           
         % Update the rval:
         rVal = get(funs{end}, 'rval');
+        idx = ~isfinite(rVal);
+        c = 0;
+        rVal(idx) = c;
         
     end
     
